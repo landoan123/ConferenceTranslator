@@ -176,11 +176,9 @@ function buildLobby() {
   const sessionId = state.sessionId;
   document.getElementById('session-id-display').textContent = sessionId;
 
-  // Nhúng Firebase config vào URL để điện thoại có thể kết nối Firebase khi quét QR
-  const fbConfigB64 = btoa(JSON.stringify(state.firebaseConfig));
+  // URL ngắn gọn - Firebase config đã được hardcode trong script.js, không cần nhúng vào URL
   const viewerUrl = window.location.origin + window.location.pathname
-    + '?session=' + sessionId
-    + '&fb=' + encodeURIComponent(fbConfigB64);
+    + '?session=' + sessionId;
   document.getElementById('session-url-display').textContent = viewerUrl;
 
   // Generate QR
@@ -188,11 +186,11 @@ function buildLobby() {
   qrContainer.innerHTML = '';
   new QRCode(qrContainer, {
     text: viewerUrl,
-    width: 180,
-    height: 180,
+    width: 200,
+    height: 200,
     colorDark: '#000000',
     colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.M,
+    correctLevel: QRCode.CorrectLevel.L,
   });
 }
 
