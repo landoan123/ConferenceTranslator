@@ -767,14 +767,16 @@ function appendViewerEntry(entry) {
 }
 
 function showViewerEndedMessage() {
-  const waiting = document.getElementById('viewer-waiting');
-  if (waiting) {
-    waiting.style.display = 'flex';
-    waiting.innerHTML = `
-      <div class="waiting-icon">✅</div>
-      <div class="waiting-title">Phiên đã kết thúc</div>
-      <div class="waiting-sub">Cảm ơn bạn đã lắng nghe!</div>
-    `;
+  const popup = document.getElementById('viewer-ended-popup');
+  if (popup) {
+    popup.style.display = 'flex';
+  }
+}
+
+function closeViewerEndedPopup() {
+  const popup = document.getElementById('viewer-ended-popup');
+  if (popup) {
+    popup.style.display = 'none';
   }
 }
 
@@ -842,7 +844,31 @@ function showSpeakerStats() {
 }
 
 function backToLobby() {
+  // Xóa session cũ trên Firebase
+  if (state.sessionRef) {
+    state.sessionRef.remove();
+    state.sessionRef = null;
+  }
+  
+  // Reset state
+  state.translationLog = [];
+  state.maxViewerCount = 0;
+  state.viewerCount = 0;
+  state.sessionStartTime = null;
+  state.sessionEndTime = null;
+  
+  // Tạo session ID mới
+  state.sessionId = generateSessionId();
+  
+  // Rebuild lobby với session mới
+  buildLobby();
   showPage('lobby-page');
+  
+  // Khởi tạo Firebase với session mới
+  initFirebaseForSpeaker();
+  
+  // Warm-up lại để session tiếp theo không bị delay
+  warmUpSpeechAPI();
 }
 
 

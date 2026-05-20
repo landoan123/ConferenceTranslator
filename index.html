@@ -229,6 +229,18 @@
         <div class="waiting-sub">Phiên dịch sẽ hiển thị tại đây theo thời gian thực</div>
       </div>
     </div>
+
+    <!-- Popup kết thúc phiên -->
+    <div id="viewer-ended-popup" class="viewer-popup">
+      <div class="viewer-popup-content">
+        <button class="popup-close-btn" onclick="closeViewerEndedPopup()" aria-label="Đóng">✕</button>
+        <div class="popup-icon">✅</div>
+        <h2 class="popup-title">Phiên đã kết thúc</h2>
+        <p class="popup-message">Cảm ơn bạn đã lắng nghe!</p>
+        <p class="popup-sub">Bạn vẫn có thể xem lại nội dung dịch bên dưới</p>
+        <button class="popup-btn" onclick="closeViewerEndedPopup()">Xem lại nội dung</button>
+      </div>
+    </div>
   </div>
 
   <!-- ===== STATISTICS PAGE (SPEAKER) ===== -->
