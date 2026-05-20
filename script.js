@@ -714,41 +714,54 @@ function listenToSession(db, sessionId) {
     // Status
     const statusDot = document.getElementById('viewer-status-dot');
     const statusText = document.getElementById('viewer-status-text');
+    const interimEl = document.getElementById('viewer-interim');
+    
     if (data.status === 'presenting') {
       statusDot.style.background = 'var(--green)';
       statusText.textContent = 'Đang phát sóng';
       document.getElementById('viewer-waiting').style.display = 'none';
+      interimEl.style.display = 'block';
     } else if (data.status === 'ended') {
       statusDot.style.background = 'var(--red)';
       statusText.textContent = 'Phiên đã kết thúc';
+      interimEl.style.display = 'none'; // Ẩn dòng "Đang lắng nghe" khi kết thúc
       showViewerEndedMessage();
+    } else {
+      // waiting status
+      interimEl.style.display = 'block';
     }
 
     // Interim
-    if (data.interim) {
-      document.getElementById('viewer-interim').textContent = data.interim;
-    } else {
-      document.getElementById('viewer-interim').innerHTML = '<em class="text-muted">Đang lắng nghe...</em>';
+    if (data.interim && data.status === 'presenting') {
+      interimEl.textContent = data.interim;
+    } else if (data.status === 'presenting') {
+      interimEl.innerHTML = '<em class="text-muted">Đang lắng nghe...</em>';
     }
   });
 
   // Listen to translations
-  let firstLoad = true;
-  sessionRef.child('translations').on('child_added', snap => {
-    if (firstLoad) return;
-    const entry = snap.val();
-    appendViewerEntry(entry);
-  });
-  setTimeout(() => {
-    firstLoad = false;
-    // Load existing translations
-    sessionRef.child('translations').once('value', snap => {
-      const data = snap.val();
-      if (data) {
-        Object.values(data).forEach(entry => appendViewerEntry(entry));
+  let loadedKeys = new Set();
+  
+  // Load existing translations first
+  sessionRef.child('translations').once('value', snap => {
+    const data = snap.val();
+    if (data) {
+      Object.keys(data).forEach(key => {
+        loadedKeys.add(key);
+        appendViewerEntry(data[key]);
+      });
+    }
+    
+    // Then listen for new translations only
+    sessionRef.child('translations').on('child_added', snap => {
+      const key = snap.key;
+      if (!loadedKeys.has(key)) {
+        loadedKeys.add(key);
+        const entry = snap.val();
+        appendViewerEntry(entry);
       }
     });
-  }, 100);
+  });
 }
 
 function appendViewerEntry(entry) {
