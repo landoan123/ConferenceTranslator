@@ -212,8 +212,6 @@
 
   <!-- ===== VIEWER PAGE ===== -->
   <div id="viewer-page">
-    <button class="lang-toggle" id="lang-toggle-viewer" onclick="switchLanguage(state.uiLang === 'vi' ? 'en' : 'vi')">🇬🇧 EN</button>
-    
     <div class="viewer-header">
       <div class="viewer-avatar" id="viewer-avatar" aria-hidden="true">🧑‍💼</div>
       <div>
@@ -223,6 +221,7 @@
           <span id="viewer-status-text" data-i18n="waitingSpeaker">Đang chờ diễn giả bắt đầu...</span>
         </div>
       </div>
+      <button class="lang-toggle lang-toggle-viewer" onclick="switchLanguage(state.uiLang === 'vi' ? 'en' : 'vi')">🇬🇧 EN</button>
     </div>
 
     <div class="viewer-interim" id="viewer-interim" aria-live="polite">

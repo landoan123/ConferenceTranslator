@@ -60,9 +60,24 @@ body {
 
 .lang-toggle-present {
   position: absolute;
-  top: 1rem;
+  top: 4rem;
   left: 1rem;
   z-index: 10;
+}
+
+@media (max-width: 768px) {
+  .lang-toggle {
+    top: 1rem;
+    right: 1rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+  }
+  
+  .lang-toggle-present {
+    position: static;
+    order: 8;
+    margin-top: 0.5rem;
+  }
 }
 
 /* ---- SETUP PAGE ---- */
@@ -804,6 +819,15 @@ input[type=file] { display: none; }
   padding: 1.5rem 1rem;
   max-width: 480px;
   margin: 0 auto;
+  position: relative;
+}
+
+.lang-toggle-viewer {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
 }
 
 .viewer-header {
@@ -815,6 +839,7 @@ input[type=file] { display: none; }
   border-radius: var(--radius);
   border: 1px solid var(--border);
   margin-bottom: 1.25rem;
+  position: relative;
 }
 
 .viewer-avatar {
