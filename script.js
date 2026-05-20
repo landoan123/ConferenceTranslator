@@ -32,7 +32,180 @@ const state = {
   isTranslating: false,
   sessionStartTime: null,
   sessionEndTime: null,
+  uiLang: 'vi', // Ngôn ngữ giao diện: 'vi' hoặc 'en'
 };
+
+// =========================================================
+// TRANSLATIONS
+// =========================================================
+const translations = {
+  vi: {
+    // Setup page
+    brandTagline: 'Dịch Thuật Hội Nghị Thời Gian Thực',
+    speakerInfo: 'Thông Tin Diễn Giả',
+    speakerName: 'Tên Diễn Giả',
+    speakerNamePlaceholder: 'Nguyễn Văn A',
+    avatar: 'Ảnh Đại Diện',
+    chooseImage: '📁 Chọn ảnh từ thiết bị',
+    orUrl: 'hoặc URL',
+    language: 'Ngôn Ngữ',
+    sourceLang: 'Ngôn ngữ gốc',
+    targetLang: 'Ngôn ngữ đích',
+    createRoom: '✨ Tạo Phòng Dịch Thuật',
+    errorEnterName: 'Vui lòng nhập tên diễn giả.',
+    
+    // Lobby page
+    sessionId: 'Session ID',
+    creating: 'Đang tạo...',
+    viewersCount: 'người đang theo dõi',
+    viewers: 'viewers',
+    step1: 'Người tham dự <strong>quét mã QR</strong> bằng camera điện thoại',
+    step2: 'Trình duyệt mở trang theo dõi — <strong>không cần cài app</strong>',
+    step3: 'Nhấn <strong>"Bắt Đầu"</strong> khi sẵn sàng trình chiếu',
+    startPresentation: '▶ Bắt Đầu Trình Chiếu',
+    backToSetup: '← Quay Lại Thiết Lập',
+    
+    // Present page
+    endSession: '✕ Kết Thúc',
+    clickToEnableMic: 'Nhấn để bật mic',
+    listening: 'Đang nghe... (nhấn để tắt)',
+    turnOffMic: 'Tắt mic',
+    turnOnMic: 'Bật mic',
+    autoRead: 'Tự động đọc',
+    on: 'BẬT',
+    off: 'TẮT',
+    turnOffAutoRead: 'Tắt tự động đọc',
+    turnOnAutoRead: 'Bật tự động đọc',
+    realtimeTranslation: '🌐 Bảng Dịch Thuật Thời Gian Thực',
+    waiting: '⏸ Đang chờ',
+    listeningStatus: '● Đang nghe',
+    translating: '⟳ Đang dịch...',
+    recognizingText: 'Văn bản đang nhận diện sẽ hiển thị tại đây...',
+    translatingText: 'Đang dịch...',
+    original: 'Nguyên bản',
+    translation: 'Bản dịch',
+    
+    // Stats page
+    statistics: 'Thống Kê Phiên Dịch',
+    duration: 'Thời gian',
+    translationsCount: 'Số câu đã dịch',
+    maxViewers: 'Số người xem tối đa',
+    thankYou: 'Cảm ơn bạn đã sử dụng VoiceBridge!',
+    backToLobby: '← Quay Lại Lobby',
+    
+    // Viewer page
+    connecting: 'Đang kết nối...',
+    waitingSpeaker: 'Đang chờ diễn giả bắt đầu...',
+    broadcasting: 'Đang phát sóng',
+    sessionEnded: 'Phiên đã kết thúc',
+    listeningViewer: 'Đang lắng nghe...',
+    waitingStart: 'Đang chờ diễn giả bắt đầu',
+    willShowHere: 'Phiên dịch sẽ hiển thị tại đây theo thời gian thực',
+    sessionEndedTitle: 'Phiên đã kết thúc',
+    thankYouViewer: 'Cảm ơn bạn đã lắng nghe!',
+    canReview: 'Bạn vẫn có thể xem lại nội dung dịch bên dưới',
+    reviewContent: 'Xem lại nội dung',
+    cannotConnect: 'Không thể kết nối',
+    needFirebase: 'Trang này cần Firebase để đồng bộ. Yêu cầu diễn giả chia sẻ QR code được tạo từ ứng dụng đã cấu hình Firebase.',
+  },
+  en: {
+    // Setup page
+    brandTagline: 'Real-Time Conference Translation',
+    speakerInfo: 'Speaker Information',
+    speakerName: 'Speaker Name',
+    speakerNamePlaceholder: 'John Doe',
+    avatar: 'Avatar',
+    chooseImage: '📁 Choose image from device',
+    orUrl: 'or URL',
+    language: 'Language',
+    sourceLang: 'Source language',
+    targetLang: 'Target language',
+    createRoom: '✨ Create Translation Room',
+    errorEnterName: 'Please enter speaker name.',
+    
+    // Lobby page
+    sessionId: 'Session ID',
+    creating: 'Creating...',
+    viewersCount: 'viewers watching',
+    viewers: 'viewers',
+    step1: 'Attendees <strong>scan QR code</strong> with phone camera',
+    step2: 'Browser opens viewer page — <strong>no app needed</strong>',
+    step3: 'Click <strong>"Start"</strong> when ready to present',
+    startPresentation: '▶ Start Presentation',
+    backToSetup: '← Back to Setup',
+    
+    // Present page
+    endSession: '✕ End',
+    clickToEnableMic: 'Click to enable mic',
+    listening: 'Listening... (click to stop)',
+    turnOffMic: 'Turn off mic',
+    turnOnMic: 'Turn on mic',
+    autoRead: 'Auto-read',
+    on: 'ON',
+    off: 'OFF',
+    turnOffAutoRead: 'Turn off auto-read',
+    turnOnAutoRead: 'Turn on auto-read',
+    realtimeTranslation: '🌐 Real-Time Translation Panel',
+    waiting: '⏸ Waiting',
+    listeningStatus: '● Listening',
+    translating: '⟳ Translating...',
+    recognizingText: 'Recognized text will appear here...',
+    translatingText: 'Translating...',
+    original: 'Original',
+    translation: 'Translation',
+    
+    // Stats page
+    statistics: 'Session Statistics',
+    duration: 'Duration',
+    translationsCount: 'Translations count',
+    maxViewers: 'Max viewers',
+    thankYou: 'Thank you for using VoiceBridge!',
+    backToLobby: '← Back to Lobby',
+    
+    // Viewer page
+    connecting: 'Connecting...',
+    waitingSpeaker: 'Waiting for speaker to start...',
+    broadcasting: 'Broadcasting',
+    sessionEnded: 'Session ended',
+    listeningViewer: 'Listening...',
+    waitingStart: 'Waiting for speaker to start',
+    willShowHere: 'Translation will appear here in real-time',
+    sessionEndedTitle: 'Session Ended',
+    thankYouViewer: 'Thank you for listening!',
+    canReview: 'You can still review the translated content below',
+    reviewContent: 'Review content',
+    cannotConnect: 'Cannot connect',
+    needFirebase: 'This page needs Firebase to sync. Please ask the speaker to share the QR code generated from the configured app.',
+  }
+};
+
+function t(key) {
+  return translations[state.uiLang][key] || key;
+}
+
+function switchLanguage(lang) {
+  state.uiLang = lang;
+  localStorage.setItem('uiLang', lang);
+  updateUILanguage();
+}
+
+function updateUILanguage() {
+  // Update all text elements with data-i18n attribute
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (el.tagName === 'INPUT' && el.placeholder !== undefined) {
+      el.placeholder = t(key);
+    } else {
+      el.innerHTML = t(key);
+    }
+  });
+  
+  // Update language toggle button
+  const langBtn = document.getElementById('lang-toggle');
+  if (langBtn) {
+    langBtn.textContent = state.uiLang === 'vi' ? '🇬🇧 EN' : '🇻🇳 VI';
+  }
+}
 
 // Bảng ánh xạ ngôn ngữ đích sang mã BCP-47 phù hợp cho SpeechSynthesis
 const TTS_LANG_MAP = {
@@ -72,6 +245,12 @@ const LANG_NAMES = {
 // ROUTING — check URL for session viewer
 // =========================================================
 function init() {
+  // Load saved UI language
+  const savedLang = localStorage.getItem('uiLang');
+  if (savedLang) {
+    state.uiLang = savedLang;
+  }
+  
   const params = new URLSearchParams(window.location.search);
   const sessionId = params.get('session');
   if (sessionId) {
@@ -79,6 +258,8 @@ function init() {
   } else {
     showPage('setup-page');
   }
+  
+  updateUILanguage();
 }
 
 
@@ -131,7 +312,7 @@ function renderAvatar(el, src, fallback = '🧑‍💼') {
 function proceedToLobby() {
   const name = document.getElementById('speaker-name').value.trim();
   if (!name) {
-    showError('setup-error', 'Vui lòng nhập tên diễn giả.');
+    showError('setup-error', t('errorEnterName'));
     return;
   }
 
@@ -159,8 +340,8 @@ function generateSessionId() {
 function updateViewerDisplay(count) {
   const lobbyEl = document.getElementById('viewer-count-lobby');
   const footerEl = document.getElementById('footer-viewers');
-  if (lobbyEl) lobbyEl.textContent = count + ' người đang theo dõi';
-  if (footerEl) footerEl.textContent = count + ' viewers';
+  if (lobbyEl) lobbyEl.textContent = count + ' ' + t('viewersCount');
+  if (footerEl) footerEl.textContent = count + ' ' + t('viewers');
   
   // Cập nhật số người xem tối đa
   if (count > state.maxViewerCount) {
@@ -683,8 +864,8 @@ function showViewerOfflineMessage() {
   const waiting = document.getElementById('viewer-waiting');
   waiting.innerHTML = `
     <div class="waiting-icon">📵</div>
-    <div class="waiting-title">Không thể kết nối</div>
-    <div class="waiting-sub">Trang này cần Firebase để đồng bộ. Yêu cầu diễn giả chia sẻ QR code được tạo từ ứng dụng đã cấu hình Firebase.</div>
+    <div class="waiting-title">${t('cannotConnect')}</div>
+    <div class="waiting-sub">${t('needFirebase')}</div>
   `;
 }
 
@@ -835,9 +1016,15 @@ function showSpeakerStats() {
   const seconds = Math.floor((duration % 60000) / 1000);
   
   let durationText = '';
-  if (hours > 0) durationText += hours + ' giờ ';
-  if (minutes > 0) durationText += minutes + ' phút ';
-  durationText += seconds + ' giây';
+  if (state.uiLang === 'vi') {
+    if (hours > 0) durationText += hours + ' giờ ';
+    if (minutes > 0) durationText += minutes + ' phút ';
+    durationText += seconds + ' giây';
+  } else {
+    if (hours > 0) durationText += hours + ' hour' + (hours > 1 ? 's' : '') + ' ';
+    if (minutes > 0) durationText += minutes + ' minute' + (minutes > 1 ? 's' : '') + ' ';
+    durationText += seconds + ' second' + (seconds !== 1 ? 's' : '');
+  }
   
   const translationCount = state.translationLog.length;
   const maxViewers = state.maxViewerCount;
@@ -851,6 +1038,9 @@ function showSpeakerStats() {
   
   const avatarSrc = state.avatarSrc || state.avatarDataUrl;
   renderAvatar(document.getElementById('stats-avatar'), avatarSrc);
+  
+  // Update language toggle
+  updateUILanguage();
   
   // Warm-up lại để session tiếp theo không bị delay
   warmUpSpeechAPI();

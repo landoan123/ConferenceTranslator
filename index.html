@@ -23,34 +23,36 @@
 
   <!-- ===== SETUP PAGE ===== -->
   <div id="setup-page">
+    <button class="lang-toggle" id="lang-toggle" onclick="switchLanguage(state.uiLang === 'vi' ? 'en' : 'vi')">🇬🇧 EN</button>
+    
     <div class="brand">
       <div class="brand-logo">
         <div class="brand-icon">🎙️</div>
         <span class="brand-name">VoiceBridge</span>
       </div>
-      <p class="brand-tagline">Dịch Thuật Hội Nghị Thời Gian Thực</p>
+      <p class="brand-tagline" data-i18n="brandTagline">Dịch Thuật Hội Nghị Thời Gian Thực</p>
     </div>
 
     <div class="setup-card">
-      <h2><span class="step-badge">1</span> Thông Tin Diễn Giả</h2>
+      <h2><span class="step-badge">1</span> <span data-i18n="speakerInfo">Thông Tin Diễn Giả</span></h2>
 
       <div class="form-group">
-        <label for="speaker-name">Tên Diễn Giả</label>
-        <input type="text" id="speaker-name" placeholder="Nguyễn Văn A" />
+        <label for="speaker-name" data-i18n="speakerName">Tên Diễn Giả</label>
+        <input type="text" id="speaker-name" data-i18n="speakerNamePlaceholder" placeholder="Nguyễn Văn A" />
       </div>
 
       <div class="form-group">
-        <label>Ảnh Đại Diện</label>
+        <label data-i18n="avatar">Ảnh Đại Diện</label>
         <div class="avatar-area">
           <div class="avatar-preview" id="avatar-preview" onclick="document.getElementById('avatar-file').click()">
             🧑‍💼
           </div>
           <div class="avatar-upload-btn">
             <input type="file" id="avatar-file" accept="image/*" onchange="handleAvatarUpload(event)">
-            <label for="avatar-file" class="upload-label">📁 Chọn ảnh từ thiết bị</label>
+            <label for="avatar-file" class="upload-label" data-i18n="chooseImage">📁 Chọn ảnh từ thiết bị</label>
             <div class="avatar-upload-divider">
               <div class="divider-line"></div>
-              <span class="divider-text">hoặc URL</span>
+              <span class="divider-text" data-i18n="orUrl">hoặc URL</span>
               <div class="divider-line"></div>
             </div>
             <input type="url" id="avatar-url" placeholder="https://..." aria-label="Đường dẫn ảnh đại diện"
@@ -60,10 +62,10 @@
       </div>
 
       <div class="form-group">
-        <label>Ngôn Ngữ</label>
+        <label data-i18n="language">Ngôn Ngữ</label>
         <div class="lang-row">
           <div>
-            <label for="source-lang">Ngôn ngữ gốc</label>
+            <label for="source-lang" data-i18n="sourceLang">Ngôn ngữ gốc</label>
             <select id="source-lang">
               <option value="vi-VN">🇻🇳 Tiếng Việt</option>
               <option value="en-US">🇺🇸 English (US)</option>
@@ -79,7 +81,7 @@
           </div>
           <div class="lang-arrow" aria-hidden="true">→</div>
           <div>
-            <label for="target-lang">Ngôn ngữ đích</label>
+            <label for="target-lang" data-i18n="targetLang">Ngôn ngữ đích</label>
             <select id="target-lang">
               <option value="en">🇺🇸 English</option>
               <option value="vi">🇻🇳 Tiếng Việt</option>
@@ -99,7 +101,7 @@
 
       <div class="error-banner" id="setup-error" role="alert" aria-live="assertive"></div>
 
-      <button class="btn-primary" onclick="proceedToLobby()">
+      <button class="btn-primary" onclick="proceedToLobby()" data-i18n="createRoom">
         ✨ Tạo Phòng Dịch Thuật
       </button>
     </div>
@@ -107,6 +109,8 @@
 
   <!-- ===== LOBBY PAGE ===== -->
   <div id="lobby-page">
+    <button class="lang-toggle" id="lang-toggle-lobby" onclick="switchLanguage(state.uiLang === 'vi' ? 'en' : 'vi')">🇬🇧 EN</button>
+    
     <div class="lobby-card">
       <div class="lobby-header">
         <div class="lobby-avatar" id="lobby-avatar" aria-hidden="true">🧑‍💼</div>
@@ -159,7 +163,8 @@
   <!-- ===== PRESENTATION PAGE ===== -->
   <div id="present-page">
     <div class="present-sidebar">
-      <button class="exit-btn" onclick="stopPresentation()">✕ Kết Thúc</button>
+      <button class="exit-btn" onclick="stopPresentation()" data-i18n="endSession">✕ Kết Thúc</button>
+      <button class="lang-toggle lang-toggle-present" onclick="switchLanguage(state.uiLang === 'vi' ? 'en' : 'vi')">🇬🇧 EN</button>
 
       <div class="present-avatar" id="present-avatar" aria-hidden="true">🧑‍💼</div>
       <div class="present-name" id="present-name">Diễn Giả</div>
@@ -207,6 +212,8 @@
 
   <!-- ===== VIEWER PAGE ===== -->
   <div id="viewer-page">
+    <button class="lang-toggle" id="lang-toggle-viewer" onclick="switchLanguage(state.uiLang === 'vi' ? 'en' : 'vi')">🇬🇧 EN</button>
+    
     <div class="viewer-header">
       <div class="viewer-avatar" id="viewer-avatar" aria-hidden="true">🧑‍💼</div>
       <div>
@@ -245,6 +252,8 @@
 
   <!-- ===== STATISTICS PAGE (SPEAKER) ===== -->
   <div id="stats-page">
+    <button class="lang-toggle" id="lang-toggle-stats" onclick="switchLanguage(state.uiLang === 'vi' ? 'en' : 'vi')">🇬🇧 EN</button>
+    
     <div class="stats-container">
       <div class="stats-header">
         <div class="stats-avatar" id="stats-avatar">🧑‍💼</div>
