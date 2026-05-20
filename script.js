@@ -200,10 +200,41 @@ function updateUILanguage() {
     }
   });
   
-  // Update language toggle button
-  const langBtn = document.getElementById('lang-toggle');
-  if (langBtn) {
-    langBtn.textContent = state.uiLang === 'vi' ? '🇬🇧 EN' : '🇻🇳 VI';
+  // Update language toggle buttons
+  document.querySelectorAll('.lang-toggle').forEach(btn => {
+    btn.textContent = state.uiLang === 'vi' ? '🇬🇧 EN' : '🇻🇳 VI';
+  });
+  
+  // Update dynamic content
+  updateViewerDisplay(state.viewerCount);
+  
+  // Update mic label if present
+  const micLabel = document.getElementById('mic-label');
+  if (micLabel && state.isMicOn) {
+    micLabel.textContent = t('listening');
+  }
+  
+  // Update TTS label if present
+  updateTTSLabel();
+  
+  // Update interim display if empty
+  const interimDisplay = document.getElementById('interim-display');
+  if (interimDisplay && !state.isMicOn && !state.isTranslating) {
+    interimDisplay.innerHTML = '<em class="text-muted">' + t('recognizingText') + '</em>';
+  }
+  
+  // Update viewer interim if present
+  const viewerInterim = document.getElementById('viewer-interim');
+  if (viewerInterim && viewerInterim.querySelector('.text-muted')) {
+    viewerInterim.innerHTML = '<em class="text-muted">' + t('listeningViewer') + '</em>';
+  }
+}
+
+function updateTTSLabel() {
+  const ttsLabel = document.getElementById('tts-label');
+  if (ttsLabel) {
+    const statusText = state.isAutoTTS ? t('on') : t('off');
+    ttsLabel.innerHTML = '<span data-i18n="autoRead">' + t('autoRead') + '</span>: <span id="tts-status-text">' + statusText + '</span>';
   }
 }
 
@@ -456,13 +487,16 @@ function startPresentation() {
 
   // Xóa nội dung trình chiếu cũ
   document.getElementById('translation-scroll').innerHTML = '';
-  document.getElementById('interim-display').innerHTML = '<em class="text-muted">Văn bản đang nhận diện sẽ hiển thị tại đây...</em>';
+  document.getElementById('interim-display').innerHTML = '<em class="text-muted">' + t('recognizingText') + '</em>';
   const chip = document.getElementById('status-chip');
   chip.className = 'status-chip idle';
-  chip.textContent = '⏸ Đang chờ';
+  chip.textContent = '⏸ ' + t('waiting');
 
   showPage('present-page');
   document.getElementById('present-page').style.display = 'flex';
+  
+  // Update UI language
+  updateUILanguage();
 
   // Try fullscreen
   const el = document.getElementById('present-page');
@@ -616,9 +650,9 @@ function startMic() {
     micBtn.classList.add('active');
     micBtn.textContent = '🔴';
     micBtn.setAttribute('aria-pressed', 'true');
-    micBtn.setAttribute('aria-label', 'Tắt mic');
-    document.getElementById('mic-label').textContent = 'Đang nghe... (nhấn để tắt)';
-    setStatus('listening', '● Đang nghe');
+    micBtn.setAttribute('aria-label', t('turnOffMic'));
+    document.getElementById('mic-label').textContent = t('listening');
+    setStatus('listening', '● ' + t('listeningStatus'));
   } catch (err) {
     console.error('Lỗi khi khởi động mic:', err);
     alert('Có lỗi khi khởi động microphone. Vui lòng tải lại trang.');
@@ -638,10 +672,10 @@ function stopMic() {
   micBtn.classList.remove('active');
   micBtn.textContent = '🎙️';
   micBtn.setAttribute('aria-pressed', 'false');
-  micBtn.setAttribute('aria-label', 'Bật mic');
-  document.getElementById('mic-label').textContent = 'Nhấn để bật mic';
-  setStatus('idle', '⏸ Đang chờ');
-  document.getElementById('interim-display').innerHTML = '<em class="text-muted">Văn bản đang nhận diện sẽ hiển thị tại đây...</em>';
+  micBtn.setAttribute('aria-label', t('turnOnMic'));
+  document.getElementById('mic-label').textContent = t('clickToEnableMic');
+  setStatus('idle', '⏸ ' + t('waiting'));
+  document.getElementById('interim-display').innerHTML = '<em class="text-muted">' + t('recognizingText') + '</em>';
 }
 
 async function triggerAutoTranslation(text) {
@@ -662,8 +696,8 @@ async function triggerAutoTranslation(text) {
   }
 
   // Cập nhật giao diện sang trạng thái đang dịch
-  document.getElementById('interim-display').innerHTML = '<em class="text-muted">Đang dịch...</em>';
-  setStatus('translating', '⟳ Đang dịch...');
+  document.getElementById('interim-display').innerHTML = '<em class="text-muted">' + t('translatingText') + '</em>';
+  setStatus('translating', '⟳ ' + t('translating'));
   if (state.sessionRef) state.sessionRef.update({ interim: '' });
 
   // Thực hiện dịch thuật; mic sẽ restart sau khi TTS đọc xong
@@ -676,27 +710,53 @@ function setStatus(type, text) {
   chip.textContent = text;
 }
 
+function translateText(originalText) {
+  return fallbackGoogleTranslate(originalText).then(translatedText => {
+    const entry = {
+      original: originalText,
+      translated: translatedText,
+      srcLang: state.sourceLang.split('-')[0].toUpperCase(),
+      tgtLang: state.targetLang.toUpperCase(),
+      timestamp: Date.now(),
+    };
+
+    state.translationLog.push(entry);
+    appendTranslationEntry(entry);
+    setStatus('listening', '● ' + t('listeningStatus'));
+
+    // Tự động đọc bản dịch
+    speakTranslation(translatedText, state.targetLang);
+
+    // Push to Firebase
+    if (state.sessionRef) {
+      state.sessionRef.child('translations').push(entry);
+    }
+
+    // Auto-scroll
+    const scroll = document.getElementById('translation-scroll');
+    setTimeout(() => { scroll.scrollTop = scroll.scrollHeight; }, 100);
+  });
+}
+
 // =========================================================
 // TEXT-TO-SPEECH (TTS) — Đọc bản dịch tự động
 // =========================================================
 function toggleTTS() {
   state.isAutoTTS = !state.isAutoTTS;
   const btn = document.getElementById('tts-btn');
-  const label = document.getElementById('tts-label');
   if (state.isAutoTTS) {
     btn.classList.add('active');
     btn.textContent = '🔊';
     btn.setAttribute('aria-pressed', 'true');
-    btn.setAttribute('aria-label', 'Tắt tự động đọc');
-    label.textContent = 'Tự động đọc: BẬT';
+    btn.setAttribute('aria-label', t('turnOffAutoRead'));
   } else {
     btn.classList.remove('active');
     btn.textContent = '🔇';
     btn.setAttribute('aria-pressed', 'false');
-    btn.setAttribute('aria-label', 'Bật tự động đọc');
-    label.textContent = 'Tự động đọc: TẮT';
+    btn.setAttribute('aria-label', t('turnOnAutoRead'));
     window.speechSynthesis.cancel();
   }
+  updateTTSLabel();
 }
 
 function speakTranslation(text, langCode) {
@@ -762,35 +822,6 @@ if (window.speechSynthesis) {
 // =========================================================
 // TRANSLATION
 // =========================================================
-async function translateText(originalText) {
-  // Ưu tiên Google Translate trực tiếp (không cần proxy, nhanh hơn)
-  const translatedText = await fallbackGoogleTranslate(originalText);
-
-  const entry = {
-    original: originalText,
-    translated: translatedText,
-    srcLang: state.sourceLang.split('-')[0].toUpperCase(),
-    tgtLang: state.targetLang.toUpperCase(),
-    timestamp: Date.now(),
-  };
-
-  state.translationLog.push(entry);
-  appendTranslationEntry(entry);
-  setStatus('listening', '● Đang nghe');
-
-  // Tự động đọc bản dịch
-  speakTranslation(translatedText, state.targetLang);
-
-  // Push to Firebase
-  if (state.sessionRef) {
-    state.sessionRef.child('translations').push(entry);
-  }
-
-  // Auto-scroll
-  const scroll = document.getElementById('translation-scroll');
-  setTimeout(() => { scroll.scrollTop = scroll.scrollHeight; }, 100);
-}
-
 // Hàm dự phòng dùng Google Translate API miễn phí không cần proxy
 async function fallbackGoogleTranslate(textToTranslate) {
   try {
@@ -821,11 +852,11 @@ function appendTranslationEntry(entry) {
   div.className = 'translation-entry';
   div.innerHTML = `
     <div class="entry-original">
-      <div class="lang-tag">${entry.srcLang} · Nguyên bản</div>
+      <div class="lang-tag">${entry.srcLang} · ${t('original')}</div>
       ${escapeHtml(entry.original)}
     </div>
     <div class="entry-translated">
-      <div class="lang-tag">${entry.tgtLang} · Bản dịch</div>
+      <div class="lang-tag">${entry.tgtLang} · ${t('translation')}</div>
       ${escapeHtml(entry.translated)}
     </div>
   `;
@@ -838,6 +869,9 @@ function appendTranslationEntry(entry) {
 function startViewerMode(sessionId) {
   showPage('viewer-page');
   document.getElementById('viewer-speaker-name').textContent = 'Session: ' + sessionId;
+  
+  // Update UI language for viewer
+  updateUILanguage();
 
   const tryFb = () => {
     if (typeof firebase === 'undefined') {
@@ -899,12 +933,12 @@ function listenToSession(db, sessionId) {
     
     if (data.status === 'presenting') {
       statusDot.style.background = 'var(--green)';
-      statusText.textContent = 'Đang phát sóng';
+      statusText.textContent = t('broadcasting');
       document.getElementById('viewer-waiting').style.display = 'none';
       interimEl.style.display = 'block';
     } else if (data.status === 'ended') {
       statusDot.style.background = 'var(--red)';
-      statusText.textContent = 'Phiên đã kết thúc';
+      statusText.textContent = t('sessionEnded');
       interimEl.style.display = 'none'; // Ẩn dòng "Đang lắng nghe" khi kết thúc
       showViewerEndedMessage();
     } else {
@@ -916,7 +950,7 @@ function listenToSession(db, sessionId) {
     if (data.interim && data.status === 'presenting') {
       interimEl.textContent = data.interim;
     } else if (data.status === 'presenting') {
-      interimEl.innerHTML = '<em class="text-muted">Đang lắng nghe...</em>';
+      interimEl.innerHTML = '<em class="text-muted">' + t('listeningViewer') + '</em>';
     }
   });
 
@@ -1066,6 +1100,9 @@ function backToLobby() {
   // Rebuild lobby với session mới
   buildLobby();
   showPage('lobby-page');
+  
+  // Update UI language
+  updateUILanguage();
   
   // Khởi tạo Firebase với session mới
   initFirebaseForSpeaker();

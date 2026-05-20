@@ -124,9 +124,9 @@
         <div class="qr-block">
           <div class="qr-container" id="qr-container" aria-label="Mã QR để người tham dự quét kết nối"></div>
           <div class="session-info">
-            <div class="session-label">Session ID</div>
+            <div class="session-label" data-i18n="sessionId">Session ID</div>
             <div class="session-id" id="session-id-display">—</div>
-            <div class="session-url" id="session-url-display">Đang tạo...</div>
+            <div class="session-url" id="session-url-display" data-i18n="creating">Đang tạo...</div>
           </div>
         </div>
 
@@ -139,22 +139,22 @@
           <div class="instructions">
             <div class="instruction-step">
               <div class="step-num">1</div>
-              <div class="step-text">Người tham dự <strong>quét mã QR</strong> bằng camera điện thoại</div>
+              <div class="step-text" data-i18n="step1">Người tham dự <strong>quét mã QR</strong> bằng camera điện thoại</div>
             </div>
             <div class="instruction-step">
               <div class="step-num">2</div>
-              <div class="step-text">Trình duyệt mở trang theo dõi — <strong>không cần cài app</strong></div>
+              <div class="step-text" data-i18n="step2">Trình duyệt mở trang theo dõi — <strong>không cần cài app</strong></div>
             </div>
             <div class="instruction-step">
               <div class="step-num">3</div>
-              <div class="step-text">Nhấn <strong>"Bắt Đầu"</strong> khi sẵn sàng trình chiếu</div>
+              <div class="step-text" data-i18n="step3">Nhấn <strong>"Bắt Đầu"</strong> khi sẵn sàng trình chiếu</div>
             </div>
           </div>
 
-          <button class="btn-start" onclick="startPresentation()">
+          <button class="btn-start" onclick="startPresentation()" data-i18n="startPresentation">
             ▶ Bắt Đầu Trình Chiếu
           </button>
-          <button class="btn-back" onclick="goBack()">← Quay Lại Thiết Lập</button>
+          <button class="btn-back" onclick="goBack()" data-i18n="backToSetup">← Quay Lại Thiết Lập</button>
         </div>
       </div>
     </div>
@@ -177,12 +177,12 @@
 
       <div class="mic-status">
         <button class="mic-btn" id="mic-btn" onclick="toggleMic()" aria-label="Bật mic" aria-pressed="false">🎙️</button>
-        <div class="mic-label" id="mic-label">Nhấn để bật mic</div>
+        <div class="mic-label" id="mic-label" data-i18n="clickToEnableMic">Nhấn để bật mic</div>
       </div>
 
       <div class="tts-status">
         <button class="tts-btn active" id="tts-btn" onclick="toggleTTS()" aria-label="Tắt tự động đọc" aria-pressed="true">🔊</button>
-        <div class="tts-label" id="tts-label">Tự động đọc: BẬT</div>
+        <div class="tts-label" id="tts-label"><span data-i18n="autoRead">Tự động đọc</span>: <span id="tts-status-text" data-i18n="on">BẬT</span></div>
       </div>
 
       <div class="present-footer-info">
@@ -196,12 +196,12 @@
 
     <div class="present-panel">
       <div class="panel-header">
-        <div class="panel-title">🌐 Bảng Dịch Thuật Thời Gian Thực</div>
-        <div class="status-chip idle" id="status-chip" aria-live="polite" role="status">⏸ Đang chờ</div>
+        <div class="panel-title" data-i18n="realtimeTranslation">🌐 Bảng Dịch Thuật Thời Gian Thực</div>
+        <div class="status-chip idle" id="status-chip" aria-live="polite" role="status" data-i18n="waiting">⏸ Đang chờ</div>
       </div>
 
       <div class="interim-display" id="interim-display" aria-live="polite">
-        <em class="text-muted">Văn bản đang nhận diện sẽ hiển thị tại đây...</em>
+        <em class="text-muted" data-i18n="recognizingText">Văn bản đang nhận diện sẽ hiển thị tại đây...</em>
       </div>
 
       <div class="translation-scroll" id="translation-scroll" aria-live="polite" role="log" aria-label="Nhật ký bản dịch"></div>
@@ -217,23 +217,23 @@
     <div class="viewer-header">
       <div class="viewer-avatar" id="viewer-avatar" aria-hidden="true">🧑‍💼</div>
       <div>
-        <div class="viewer-speaker-name" id="viewer-speaker-name">Đang kết nối...</div>
+        <div class="viewer-speaker-name" id="viewer-speaker-name" data-i18n="connecting">Đang kết nối...</div>
         <div class="viewer-status" aria-live="polite">
           <div class="pulse-dot" id="viewer-status-dot" aria-hidden="true"></div>
-          <span id="viewer-status-text">Đang chờ diễn giả bắt đầu...</span>
+          <span id="viewer-status-text" data-i18n="waitingSpeaker">Đang chờ diễn giả bắt đầu...</span>
         </div>
       </div>
     </div>
 
     <div class="viewer-interim" id="viewer-interim" aria-live="polite">
-      <em class="text-muted">Đang lắng nghe...</em>
+      <em class="text-muted" data-i18n="listeningViewer">Đang lắng nghe...</em>
     </div>
 
     <div class="viewer-scroll" id="viewer-scroll" aria-live="polite" role="log" aria-label="Bản dịch của người xem">
       <div class="waiting-overlay" id="viewer-waiting">
         <div class="waiting-icon" aria-hidden="true">🎙️</div>
-        <div class="waiting-title">Đang chờ diễn giả bắt đầu</div>
-        <div class="waiting-sub">Phiên dịch sẽ hiển thị tại đây theo thời gian thực</div>
+        <div class="waiting-title" data-i18n="waitingStart">Đang chờ diễn giả bắt đầu</div>
+        <div class="waiting-sub" data-i18n="willShowHere">Phiên dịch sẽ hiển thị tại đây theo thời gian thực</div>
       </div>
     </div>
 
@@ -242,10 +242,10 @@
       <div class="viewer-popup-content">
         <button class="popup-close-btn" onclick="closeViewerEndedPopup()" aria-label="Đóng">✕</button>
         <div class="popup-icon">✅</div>
-        <h2 class="popup-title">Phiên đã kết thúc</h2>
-        <p class="popup-message">Cảm ơn bạn đã lắng nghe!</p>
-        <p class="popup-sub">Bạn vẫn có thể xem lại nội dung dịch bên dưới</p>
-        <button class="popup-btn" onclick="closeViewerEndedPopup()">Xem lại nội dung</button>
+        <h2 class="popup-title" data-i18n="sessionEndedTitle">Phiên đã kết thúc</h2>
+        <p class="popup-message" data-i18n="thankYouViewer">Cảm ơn bạn đã lắng nghe!</p>
+        <p class="popup-sub" data-i18n="canReview">Bạn vẫn có thể xem lại nội dung dịch bên dưới</p>
+        <button class="popup-btn" onclick="closeViewerEndedPopup()" data-i18n="reviewContent">Xem lại nội dung</button>
       </div>
     </div>
   </div>
@@ -265,36 +265,36 @@
 
       <div class="stats-title">
         <div class="stats-icon">📊</div>
-        <h1>Thống Kê Phiên Dịch</h1>
+        <h1 data-i18n="statistics">Thống Kê Phiên Dịch</h1>
       </div>
 
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-icon">⏱️</div>
-          <div class="stat-label">Thời gian</div>
+          <div class="stat-label" data-i18n="duration">Thời gian</div>
           <div class="stat-value" id="stats-duration">—</div>
         </div>
 
         <div class="stat-card">
           <div class="stat-icon">💬</div>
-          <div class="stat-label">Số câu đã dịch</div>
+          <div class="stat-label" data-i18n="translationsCount">Số câu đã dịch</div>
           <div class="stat-value" id="stats-translations">0</div>
         </div>
 
         <div class="stat-card">
           <div class="stat-icon">👥</div>
-          <div class="stat-label">Số người xem tối đa</div>
+          <div class="stat-label" data-i18n="maxViewers">Số người xem tối đa</div>
           <div class="stat-value" id="stats-max-viewers">0</div>
         </div>
       </div>
 
       <div class="stats-message">
         <div class="stats-message-icon">✨</div>
-        <div class="stats-message-text">Cảm ơn bạn đã sử dụng VoiceBridge!</div>
+        <div class="stats-message-text" data-i18n="thankYou">Cảm ơn bạn đã sử dụng VoiceBridge!</div>
       </div>
 
       <div class="stats-actions">
-        <button class="btn-primary" onclick="backToLobby()">
+        <button class="btn-primary" onclick="backToLobby()" data-i18n="backToLobby">
           ← Quay Lại Lobby
         </button>
       </div>
