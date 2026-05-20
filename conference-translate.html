@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceBridge — Dịch Thuật Hội Nghị</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <!-- QR Code -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- ===== SETUP PAGE ===== -->
+  <div id="setup-page">
+    <div class="brand">
+      <div class="brand-logo">
+        <div class="brand-icon">🎙️</div>
+        <span class="brand-name">VoiceBridge</span>
+      </div>
+      <p class="brand-tagline">Dịch Thuật Hội Nghị Thời Gian Thực</p>
+    </div>
+
+    <div class="setup-card">
+      <h2><span class="step-badge">1</span> Thông Tin Diễn Giả</h2>
+
+      <div class="form-group">
+        <label for="speaker-name">Tên Diễn Giả</label>
+        <input type="text" id="speaker-name" placeholder="Nguyễn Văn A" />
+      </div>
+
+      <div class="form-group">
+        <label>Ảnh Đại Diện</label>
+        <div class="avatar-area">
+          <div class="avatar-preview" id="avatar-preview" onclick="document.getElementById('avatar-file').click()">
+            🧑‍💼
+          </div>
+          <div class="avatar-upload-btn">
+            <input type="file" id="avatar-file" accept="image/*" onchange="handleAvatarUpload(event)">
+            <label for="avatar-file" class="upload-label">📁 Chọn ảnh từ thiết bị</label>
+            <div class="avatar-upload-divider">
+              <div class="divider-line"></div>
+              <span class="divider-text">hoặc URL</span>
+              <div class="divider-line"></div>
+            </div>
+            <input type="url" id="avatar-url" placeholder="https://..." aria-label="Đường dẫn ảnh đại diện"
+              oninput="handleAvatarUrl(this.value)">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Ngôn Ngữ</label>
+        <div class="lang-row">
+          <div>
+            <label for="source-lang">Ngôn ngữ gốc</label>
+            <select id="source-lang">
+              <option value="vi-VN">🇻🇳 Tiếng Việt</option>
+              <option value="en-US">🇺🇸 English (US)</option>
+              <option value="en-GB">🇬🇧 English (UK)</option>
+              <option value="zh-CN">🇨🇳 中文 (简体)</option>
+              <option value="ja-JP">🇯🇵 日本語</option>
+              <option value="ko-KR">🇰🇷 한국어</option>
+              <option value="fr-FR">🇫🇷 Français</option>
+              <option value="de-DE">🇩🇪 Deutsch</option>
+              <option value="es-ES">🇪🇸 Español</option>
+              <option value="th-TH">🇹🇭 ภาษาไทย</option>
+            </select>
+          </div>
+          <div class="lang-arrow" aria-hidden="true">→</div>
+          <div>
+            <label for="target-lang">Ngôn ngữ đích</label>
+            <select id="target-lang">
+              <option value="en">🇺🇸 English</option>
+              <option value="vi">🇻🇳 Tiếng Việt</option>
+              <option value="zh">🇨🇳 中文</option>
+              <option value="ja">🇯🇵 日本語</option>
+              <option value="ko">🇰🇷 한국어</option>
+              <option value="fr">🇫🇷 Français</option>
+              <option value="de">🇩🇪 Deutsch</option>
+              <option value="es">🇪🇸 Español</option>
+              <option value="th">🇹🇭 ภาษาไทย</option>
+              <option value="pt">🇧🇷 Português</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+
+      <div class="error-banner" id="setup-error" role="alert" aria-live="assertive"></div>
+
+      <button class="btn-primary" onclick="proceedToLobby()">
+        ✨ Tạo Phòng Dịch Thuật
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== LOBBY PAGE ===== -->
+  <div id="lobby-page">
+    <div class="lobby-card">
+      <div class="lobby-header">
+        <div class="lobby-avatar" id="lobby-avatar" aria-hidden="true">🧑‍💼</div>
+        <div class="lobby-info">
+          <h2 id="lobby-name">Diễn Giả</h2>
+          <p id="lobby-langs">Đang chuẩn bị...</p>
+        </div>
+      </div>
+
+      <div class="lobby-body">
+        <div class="qr-block">
+          <div class="qr-container" id="qr-container" aria-label="Mã QR để người tham dự quét kết nối"></div>
+          <div class="session-info">
+            <div class="session-label">Session ID</div>
+            <div class="session-id" id="session-id-display">—</div>
+            <div class="session-url" id="session-url-display">Đang tạo...</div>
+          </div>
+        </div>
+
+        <div class="lobby-actions">
+          <div class="viewers-count" aria-live="polite">
+            <div class="pulse-dot" aria-hidden="true"></div>
+            <span id="viewer-count-lobby">0 người đang theo dõi</span>
+          </div>
+
+          <div class="instructions">
+            <div class="instruction-step">
+              <div class="step-num">1</div>
+              <div class="step-text">Người tham dự <strong>quét mã QR</strong> bằng camera điện thoại</div>
+            </div>
+            <div class="instruction-step">
+              <div class="step-num">2</div>
+              <div class="step-text">Trình duyệt mở trang theo dõi — <strong>không cần cài app</strong></div>
+            </div>
+            <div class="instruction-step">
+              <div class="step-num">3</div>
+              <div class="step-text">Nhấn <strong>"Bắt Đầu"</strong> khi sẵn sàng trình chiếu</div>
+            </div>
+          </div>
+
+          <button class="btn-start" onclick="startPresentation()">
+            ▶ Bắt Đầu Trình Chiếu
+          </button>
+          <button class="btn-back" onclick="goBack()">← Quay Lại Thiết Lập</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PRESENTATION PAGE ===== -->
+  <div id="present-page">
+    <div class="present-sidebar">
+      <button class="exit-btn" onclick="stopPresentation()">✕ Kết Thúc</button>
+
+      <div class="present-avatar" id="present-avatar" aria-hidden="true">🧑‍💼</div>
+      <div class="present-name" id="present-name">Diễn Giả</div>
+
+      <div class="present-langs">
+        <div class="lang-badge" id="present-src-lang">VI</div>
+        <span class="lang-separator" aria-hidden="true">→</span>
+        <div class="lang-badge" id="present-tgt-lang">EN</div>
+      </div>
+
+      <div class="mic-status">
+        <button class="mic-btn" id="mic-btn" onclick="toggleMic()" aria-label="Bật mic" aria-pressed="false">🎙️</button>
+        <div class="mic-label" id="mic-label">Nhấn để bật mic</div>
+      </div>
+
+      <div class="tts-status">
+        <button class="tts-btn active" id="tts-btn" onclick="toggleTTS()" aria-label="Tắt tự động đọc" aria-pressed="true">🔊</button>
+        <div class="tts-label" id="tts-label">Tự động đọc: BẬT</div>
+      </div>
+
+      <div class="present-footer-info">
+        <div class="footer-session" id="footer-session">SESSION: —</div>
+        <div class="footer-viewers" aria-live="polite">
+          <div class="pulse-dot" aria-hidden="true"></div>
+          <span id="footer-viewers">0 viewers</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="present-panel">
+      <div class="panel-header">
+        <div class="panel-title">🌐 Bảng Dịch Thuật Thời Gian Thực</div>
+        <div class="status-chip idle" id="status-chip" aria-live="polite" role="status">⏸ Đang chờ</div>
+      </div>
+
+      <div class="interim-display" id="interim-display" aria-live="polite">
+        <em class="text-muted">Văn bản đang nhận diện sẽ hiển thị tại đây...</em>
+      </div>
+
+      <div class="translation-scroll" id="translation-scroll" aria-live="polite" role="log" aria-label="Nhật ký bản dịch"></div>
+
+      <div class="watermark">VoiceBridge</div>
+    </div>
+  </div>
+
+  <!-- ===== VIEWER PAGE ===== -->
+  <div id="viewer-page">
+    <div class="viewer-header">
+      <div class="viewer-avatar" id="viewer-avatar" aria-hidden="true">🧑‍💼</div>
+      <div>
+        <div class="viewer-speaker-name" id="viewer-speaker-name">Đang kết nối...</div>
+        <div class="viewer-status" aria-live="polite">
+          <div class="pulse-dot" id="viewer-status-dot" aria-hidden="true"></div>
+          <span id="viewer-status-text">Đang chờ diễn giả bắt đầu...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="viewer-interim" id="viewer-interim" aria-live="polite">
+      <em class="text-muted">Đang lắng nghe...</em>
+    </div>
+
+    <div class="viewer-scroll" id="viewer-scroll" aria-live="polite" role="log" aria-label="Bản dịch của người xem">
+      <div class="waiting-overlay" id="viewer-waiting">
+        <div class="waiting-icon" aria-hidden="true">🎙️</div>
+        <div class="waiting-title">Đang chờ diễn giả bắt đầu</div>
+        <div class="waiting-sub">Phiên dịch sẽ hiển thị tại đây theo thời gian thực</div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <script src="script.js"></script>
+</body>
+
+</html>
