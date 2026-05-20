@@ -545,7 +545,8 @@ function speakTranslation(text, langCode) {
   utterance.onend = () => {
     if (state.isMicOn) {
       state.isTranslating = false;
-      startMic();
+      // Delay 600ms để buffer audio bị xóa, tránh mic thu lại âm thanh TTS vừa phát
+      setTimeout(() => { if (state.isMicOn) startMic(); }, 600);
     }
   };
 
@@ -553,7 +554,7 @@ function speakTranslation(text, langCode) {
   utterance.onerror = () => {
     if (state.isMicOn) {
       state.isTranslating = false;
-      startMic();
+      setTimeout(() => { if (state.isMicOn) startMic(); }, 600);
     }
   };
 
@@ -572,70 +573,8 @@ if (window.speechSynthesis) {
 // TRANSLATION
 // =========================================================
 async function translateText(originalText) {
-  let translatedText = '[Đang dịch...]';
-
-  if (state.translateApiKey) {
-    try {
-      const isFree = state.translateApiKey.endsWith(':fx');
-      const deeplEndpoint = isFree ? 'https://api-free.deepl.com/v2/translate' : 'https://api.deepl.com/v2/translate';
-
-      let targetLangDeepL = state.targetLang.toUpperCase();
-      if (targetLangDeepL === 'EN') targetLangDeepL = 'EN-US';
-      if (targetLangDeepL === 'PT') targetLangDeepL = 'PT-BR';
-      let sourceLangDeepL = state.sourceLang.split('-')[0].toUpperCase();
-
-      // Cập nhật danh sách proxy, loại bỏ corsproxy.io đang lỗi 521
-      const proxies = [
-        'https://proxy.corsfix.com/?',
-        'https://cors.lol/?',
-        'https://thingproxy.freeboard.io/fetch/'
-      ];
-
-      let res;
-      for (const proxy of proxies) {
-        try {
-          const endpoint = proxy + encodeURIComponent(deeplEndpoint);
-          res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Authorization': `DeepL-Auth-Key ${state.translateApiKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              text: [originalText],
-              source_lang: sourceLangDeepL,
-              target_lang: targetLangDeepL
-            }),
-          });
-
-          if (res.ok) {
-            break;
-          } else {
-            console.warn(`Proxy ${proxy} trả về lỗi ${res.status}`);
-          }
-        } catch (err) {
-          console.warn(`Proxy ${proxy} fetch error:`, err);
-        }
-      }
-
-      if (res && res.ok) {
-        const data = await res.json();
-        if (data.translations && data.translations.length > 0) {
-          translatedText = data.translations[0].text;
-        } else if (data.message) {
-          translatedText = '[Lỗi API: ' + data.message + ']';
-        }
-      } else {
-        console.warn('Tất cả CORS proxies cho DeepL đều bị lỗi. Đang chuyển sang Google Translate dự phòng...');
-        translatedText = await fallbackGoogleTranslate(originalText);
-      }
-    } catch (e) {
-      console.warn('Lỗi kết nối DeepL:', e);
-      translatedText = await fallbackGoogleTranslate(originalText);
-    }
-  } else {
-    translatedText = await fallbackGoogleTranslate(originalText);
-  }
+  // Ưu tiên Google Translate trực tiếp (không cần proxy, nhanh hơn)
+  const translatedText = await fallbackGoogleTranslate(originalText);
 
   const entry = {
     original: originalText,
@@ -711,27 +650,19 @@ function startViewerMode(sessionId) {
   document.getElementById('viewer-speaker-name').textContent = 'Session: ' + sessionId;
 
   const tryFb = () => {
-    if (typeof firebase === 'undefined') return;
-
-    // Nếu Firebase đã được khởi tạo (cùng thiết bị với diễn giả)
-    if (firebase.apps.length > 0) {
-      listenToSession(firebase.database(), sessionId);
+    if (typeof firebase === 'undefined') {
+      // SDK chưa tải xong, thử lại sau
+      setTimeout(tryFb, 300);
       return;
     }
-
-    // Đọc Firebase config từ tham số URL (?fb=base64)
-    const fbParam = new URLSearchParams(window.location.search).get('fb');
-    if (fbParam) {
-      try {
-        const decoded = decodeURIComponent(fbParam);
-        const config = JSON.parse(atob(decoded));
-        firebase.initializeApp(config);
-        listenToSession(firebase.database(), sessionId);
-      } catch (e) {
-        console.error('Firebase viewer init error:', e);
-        showViewerOfflineMessage();
+    try {
+      // Dùng firebaseConfig có sẵn trong script (không cần URL param)
+      if (!firebase.apps.length) {
+        firebase.initializeApp(state.firebaseConfig);
       }
-    } else {
+      listenToSession(firebase.database(), sessionId);
+    } catch (e) {
+      console.error('Firebase viewer init error:', e);
       showViewerOfflineMessage();
     }
   };
