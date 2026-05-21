@@ -128,7 +128,12 @@
           <div class="session-info">
             <div class="session-label" data-i18n="sessionId">Session ID</div>
             <div class="session-id" id="session-id-display">—</div>
-            <div class="session-url" id="session-url-display" data-i18n="creating">Đang tạo...</div>
+            <div class="session-url-container">
+              <div class="session-url" id="session-url-display">Đang tạo...</div>
+              <button class="copy-btn" id="copy-url-btn" onclick="copySessionUrl()" title="Copy link" style="display: none;">
+                📋
+              </button>
+            </div>
           </div>
         </div>
 

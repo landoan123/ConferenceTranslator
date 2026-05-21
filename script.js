@@ -19,6 +19,7 @@ const state = {
     measurementId: "G-MP392ECQGJ",
   },
   sessionId: null,
+  viewerUrl: null,
   isPresenting: false,
   isMicOn: false,
   recognition: null,
@@ -107,6 +108,7 @@ const translations = {
     reviewContent: 'Xem lại nội dung',
     cannotConnect: 'Không thể kết nối',
     needFirebase: 'Trang này cần Firebase để đồng bộ. Yêu cầu diễn giả chia sẻ QR code được tạo từ ứng dụng đã cấu hình Firebase.',
+    errorCopyUrl: 'URL chưa sẵn sàng để copy',
   },
   en: {
     // Setup page
@@ -176,6 +178,7 @@ const translations = {
     reviewContent: 'Review content',
     cannotConnect: 'Cannot connect',
     needFirebase: 'This page needs Firebase to sync. Please ask the speaker to share the QR code generated from the configured app.',
+    errorCopyUrl: 'URL is not ready to copy',
   }
 };
 
@@ -390,6 +393,7 @@ function buildLobby() {
   const sessionIdDisplay = document.getElementById('session-id-display');
   const sessionUrlDisplay = document.getElementById('session-url-display');
   const qrContainer = document.getElementById('qr-container');
+  const copyBtn = document.getElementById('copy-url-btn');
   
   if (!lobbyName || !lobbyLangs || !lobbyAvatar || !sessionIdDisplay || !sessionUrlDisplay || !qrContainer) {
     console.error('Missing lobby elements');
@@ -410,7 +414,21 @@ function buildLobby() {
 
   // URL ngắn gọn - Firebase config đã được hardcode trong script.js, không cần nhúng vào URL
   const viewerUrl = window.location.origin + window.location.pathname + '?session=' + sessionId;
+  
+  // Store URL in state for copy function
+  state.viewerUrl = viewerUrl;
+  
+  // Update URL display - remove data-i18n to prevent override
+  sessionUrlDisplay.removeAttribute('data-i18n');
   sessionUrlDisplay.textContent = viewerUrl;
+  sessionUrlDisplay.style.cursor = 'pointer';
+  sessionUrlDisplay.title = 'Click to copy';
+  sessionUrlDisplay.onclick = copySessionUrl;
+  
+  // Show copy button
+  if (copyBtn) {
+    copyBtn.style.display = 'block';
+  }
 
   // Generate QR - Clear old QR first
   qrContainer.innerHTML = '';
@@ -426,6 +444,72 @@ function buildLobby() {
   } catch (e) {
     console.error('QR Code generation error:', e);
     qrContainer.innerHTML = '<div style="padding: 20px; text-align: center;">QR Code Error</div>';
+  }
+}
+
+function copySessionUrl() {
+  const url = state.viewerUrl || document.getElementById('session-url-display')?.textContent;
+  
+  if (!url || url === 'Đang tạo...' || url === 'Creating...') {
+    alert(t('errorCopyUrl') || 'URL chưa sẵn sàng');
+    return;
+  }
+  
+  // Try modern clipboard API first
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      showCopySuccess();
+    }).catch(err => {
+      console.error('Clipboard API failed:', err);
+      fallbackCopyText(url);
+    });
+  } else {
+    fallbackCopyText(url);
+  }
+}
+
+function fallbackCopyText(text) {
+  // Fallback for older browsers
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  
+  try {
+    document.execCommand('copy');
+    showCopySuccess();
+  } catch (err) {
+    console.error('Fallback copy failed:', err);
+    alert(t('errorCopyUrl') || 'Không thể copy. Vui lòng copy thủ công.');
+  }
+  
+  document.body.removeChild(textarea);
+}
+
+function showCopySuccess() {
+  const copyBtn = document.getElementById('copy-url-btn');
+  const urlDisplay = document.getElementById('session-url-display');
+  
+  if (copyBtn) {
+    copyBtn.classList.add('copied');
+    copyBtn.textContent = '✓';
+    setTimeout(() => {
+      copyBtn.classList.remove('copied');
+      copyBtn.textContent = '📋';
+    }, 2000);
+  }
+  
+  // Show temporary success message
+  if (urlDisplay) {
+    const originalText = urlDisplay.textContent;
+    urlDisplay.textContent = state.uiLang === 'vi' ? '✓ Đã copy!' : '✓ Copied!';
+    urlDisplay.style.color = 'var(--green)';
+    setTimeout(() => {
+      urlDisplay.textContent = originalText;
+      urlDisplay.style.color = 'var(--text2)';
+    }, 2000);
   }
 }
 
