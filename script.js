@@ -384,53 +384,86 @@ function updateViewerDisplay(count) {
 // BUILD LOBBY
 // =========================================================
 function buildLobby() {
-  document.getElementById('lobby-name').textContent = state.speakerName;
+  const lobbyName = document.getElementById('lobby-name');
+  const lobbyLangs = document.getElementById('lobby-langs');
+  const lobbyAvatar = document.getElementById('lobby-avatar');
+  const sessionIdDisplay = document.getElementById('session-id-display');
+  const sessionUrlDisplay = document.getElementById('session-url-display');
+  const qrContainer = document.getElementById('qr-container');
+  
+  if (!lobbyName || !lobbyLangs || !lobbyAvatar || !sessionIdDisplay || !sessionUrlDisplay || !qrContainer) {
+    console.error('Missing lobby elements');
+    return;
+  }
+  
+  lobbyName.textContent = state.speakerName;
 
   const srcName = LANG_NAMES[state.sourceLang] || state.sourceLang;
   const tgtName = LANG_NAMES[state.targetLang] || state.targetLang;
-  document.getElementById('lobby-langs').textContent = `${srcName} → ${tgtName}`;
+  lobbyLangs.textContent = `${srcName} → ${tgtName}`;
 
   const avatarSrc = state.avatarSrc || state.avatarDataUrl;
-  renderAvatar(document.getElementById('lobby-avatar'), avatarSrc);
+  renderAvatar(lobbyAvatar, avatarSrc);
 
   const sessionId = state.sessionId;
-  document.getElementById('session-id-display').textContent = sessionId;
+  sessionIdDisplay.textContent = sessionId;
 
   // URL ngắn gọn - Firebase config đã được hardcode trong script.js, không cần nhúng vào URL
-  const viewerUrl = window.location.origin + window.location.pathname
-    + '?session=' + sessionId;
-  document.getElementById('session-url-display').textContent = viewerUrl;
+  const viewerUrl = window.location.origin + window.location.pathname + '?session=' + sessionId;
+  sessionUrlDisplay.textContent = viewerUrl;
 
-  // Generate QR
-  const qrContainer = document.getElementById('qr-container');
+  // Generate QR - Clear old QR first
   qrContainer.innerHTML = '';
-  new QRCode(qrContainer, {
-    text: viewerUrl,
-    width: 200,
-    height: 200,
-    colorDark: '#000000',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.L,
-  });
+  try {
+    new QRCode(qrContainer, {
+      text: viewerUrl,
+      width: 200,
+      height: 200,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.L,
+    });
+  } catch (e) {
+    console.error('QR Code generation error:', e);
+    qrContainer.innerHTML = '<div style="padding: 20px; text-align: center;">QR Code Error</div>';
+  }
 }
 
 function goBack() {
+  // Stop mic nếu đang bật
+  if (state.isMicOn) {
+    stopMic();
+  }
+  
+  // Cleanup Firebase
   if (state.sessionRef) {
+    state.sessionRef.off();
     state.sessionRef.remove();
     state.sessionRef = null;
   }
+  
+  // Reset state
+  state.isPresenting = false;
+  state.translationLog = [];
+  state.viewerCount = 0;
+  state.maxViewerCount = 0;
+  
   showPage('setup-page');
 }
 
-// Khởi tạo Firebase và tạo session cho diễn giả
 function initFirebaseForSpeaker() {
-  if (!state.firebaseConfig || !state.firebaseConfig.apiKey) return;
+  if (!state.firebaseConfig || !state.firebaseConfig.apiKey) {
+    console.warn('Firebase config not found');
+    return;
+  }
+  
   try {
     if (!firebase.apps.length) {
       firebase.initializeApp(state.firebaseConfig);
     }
     state.db = firebase.database();
     state.sessionRef = state.db.ref('sessions/' + state.sessionId);
+    
     state.sessionRef.set({
       speakerName: state.speakerName,
       avatarSrc: state.avatarSrc || state.avatarDataUrl || null,
@@ -441,17 +474,31 @@ function initFirebaseForSpeaker() {
       translations: null,
       interim: '',
       updatedAt: Date.now(),
+    }).catch(e => {
+      console.error('Firebase set error:', e);
     });
+    
     // Theo dõi số người xem
     state.sessionRef.child('viewerCount').on('value', snap => {
       const count = snap.val() || 0;
       state.viewerCount = count;
       updateViewerDisplay(count);
     });
+    
     // Xóa session khi đóng trang
-    window.addEventListener('beforeunload', () => {
-      if (state.sessionRef) state.sessionRef.remove();
-    });
+    const cleanup = () => {
+      if (state.sessionRef) {
+        state.sessionRef.off();
+        state.sessionRef.remove();
+      }
+    };
+    
+    window.addEventListener('beforeunload', cleanup);
+    
+    // Store cleanup for manual use
+    if (!window.speakerCleanup) {
+      window.speakerCleanup = cleanup;
+    }
   } catch (e) {
     console.error('Firebase init error:', e);
   }
@@ -470,46 +517,88 @@ function startPresentation() {
 
   // Update Firebase
   if (state.sessionRef) {
-    state.sessionRef.update({ status: 'presenting', translations: null, interim: '' });
+    try {
+      state.sessionRef.update({ status: 'presenting', translations: null, interim: '' });
+    } catch (e) {
+      console.warn('Firebase update error:', e);
+    }
   }
 
   // Build present page
   const avatarSrc = state.avatarSrc || state.avatarDataUrl;
-  renderAvatar(document.getElementById('present-avatar'), avatarSrc);
-  document.getElementById('present-name').textContent = state.speakerName;
+  const presentAvatar = document.getElementById('present-avatar');
+  const presentName = document.getElementById('present-name');
+  const presentSrcLang = document.getElementById('present-src-lang');
+  const presentTgtLang = document.getElementById('present-tgt-lang');
+  const footerSession = document.getElementById('footer-session');
+  const translationScroll = document.getElementById('translation-scroll');
+  const interimDisplay = document.getElementById('interim-display');
+  const statusChip = document.getElementById('status-chip');
+  
+  if (presentAvatar) renderAvatar(presentAvatar, avatarSrc);
+  if (presentName) presentName.textContent = state.speakerName;
 
   const srcShort = state.sourceLang.split('-')[0].toUpperCase();
   const tgtShort = state.targetLang.toUpperCase();
-  document.getElementById('present-src-lang').textContent = srcShort;
-  document.getElementById('present-tgt-lang').textContent = tgtShort;
-  document.getElementById('footer-session').textContent = 'SESSION: ' + state.sessionId;
+  if (presentSrcLang) presentSrcLang.textContent = srcShort;
+  if (presentTgtLang) presentTgtLang.textContent = tgtShort;
+  if (footerSession) footerSession.textContent = 'SESSION: ' + state.sessionId;
+  
   updateViewerDisplay(state.viewerCount);
 
   // Xóa nội dung trình chiếu cũ
-  document.getElementById('translation-scroll').innerHTML = '';
-  document.getElementById('interim-display').innerHTML = '<em class="text-muted">' + t('recognizingText') + '</em>';
-  const chip = document.getElementById('status-chip');
-  chip.className = 'status-chip idle';
-  chip.textContent = '⏸ ' + t('waiting');
+  if (translationScroll) translationScroll.innerHTML = '';
+  if (interimDisplay) interimDisplay.innerHTML = '<em class="text-muted">' + t('recognizingText') + '</em>';
+  if (statusChip) {
+    statusChip.className = 'status-chip idle';
+    statusChip.textContent = '⏸ ' + t('waiting');
+  }
 
   showPage('present-page');
-  document.getElementById('present-page').style.display = 'flex';
+  const presentPage = document.getElementById('present-page');
+  if (presentPage) presentPage.style.display = 'flex';
   
   // Update UI language
   updateUILanguage();
 
   // Try fullscreen
   const el = document.getElementById('present-page');
-  if (el.requestFullscreen) el.requestFullscreen().catch(() => { });
-  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  if (el) {
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(() => { });
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    }
+  }
 }
 
 function stopPresentation() {
   state.isPresenting = false;
   state.sessionEndTime = Date.now();
+  
+  // Stop mic và cleanup
   stopMic();
-  if (state.sessionRef) state.sessionRef.update({ status: 'ended' });
-  if (document.exitFullscreen) document.exitFullscreen().catch(() => { });
+  
+  // Stop TTS
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+  
+  // Update Firebase
+  if (state.sessionRef) {
+    try {
+      state.sessionRef.update({ status: 'ended' });
+    } catch (e) {
+      console.warn('Firebase update error:', e);
+    }
+  }
+  
+  // Exit fullscreen
+  if (document.exitFullscreen) {
+    document.exitFullscreen().catch(() => { });
+  } else if (document.webkitExitFullscreen) {
+    document.webkitExitFullscreen();
+  }
   
   // Hiển thị màn hình thống kê cho diễn giả
   showSpeakerStats();
@@ -557,7 +646,9 @@ function startMic() {
       state.recognition.onerror = null;
       state.recognition.onend = null;
       state.recognition.stop();
-    } catch (e) { }
+    } catch (e) {
+      console.warn('Cleanup recognition error:', e);
+    }
     state.recognition = null;
   }
 
@@ -593,11 +684,18 @@ function startMic() {
     }
 
     if (interim) {
-      document.getElementById('interim-display').textContent = interim;
-      if (state.sessionRef) state.sessionRef.update({ interim });
-      // Viewer interim
-      const vInterim = document.getElementById('viewer-interim');
-      if (vInterim) vInterim.textContent = interim;
+      const interimDisplay = document.getElementById('interim-display');
+      if (interimDisplay) {
+        interimDisplay.textContent = interim;
+      }
+      
+      if (state.sessionRef) {
+        try {
+          state.sessionRef.update({ interim });
+        } catch (e) {
+          console.warn('Firebase interim update error:', e);
+        }
+      }
 
       // Tự động dịch sau khoảng lặng ngừng nói
       clearTimeout(state.silenceTimer);
@@ -610,6 +708,7 @@ function startMic() {
 
     if (finalText.trim()) {
       clearTimeout(state.silenceTimer);
+      state.silenceTimer = null;
       triggerAutoTranslation(finalText);
     }
   };
@@ -647,11 +746,19 @@ function startMic() {
     state.isMicOn = true;
 
     const micBtn = document.getElementById('mic-btn');
-    micBtn.classList.add('active');
-    micBtn.textContent = '🔴';
-    micBtn.setAttribute('aria-pressed', 'true');
-    micBtn.setAttribute('aria-label', t('turnOffMic'));
-    document.getElementById('mic-label').textContent = t('listening');
+    const micLabel = document.getElementById('mic-label');
+    
+    if (micBtn) {
+      micBtn.classList.add('active');
+      micBtn.textContent = '🔴';
+      micBtn.setAttribute('aria-pressed', 'true');
+      micBtn.setAttribute('aria-label', t('turnOffMic'));
+    }
+    
+    if (micLabel) {
+      micLabel.textContent = t('listening');
+    }
+    
     setStatus('listening', '● ' + t('listeningStatus'));
   } catch (err) {
     console.error('Lỗi khi khởi động mic:', err);
@@ -661,21 +768,41 @@ function startMic() {
 
 function stopMic() {
   clearTimeout(state.silenceTimer);
+  state.silenceTimer = null;
   state.isTranslating = false;
+  
   if (state.recognition) {
-    state.recognition.onend = null;
-    state.recognition.stop();
+    try {
+      state.recognition.onend = null;
+      state.recognition.stop();
+    } catch (e) {
+      console.warn('Error stopping recognition:', e);
+    }
     state.recognition = null;
   }
+  
   state.isMicOn = false;
+  
   const micBtn = document.getElementById('mic-btn');
-  micBtn.classList.remove('active');
-  micBtn.textContent = '🎙️';
-  micBtn.setAttribute('aria-pressed', 'false');
-  micBtn.setAttribute('aria-label', t('turnOnMic'));
-  document.getElementById('mic-label').textContent = t('clickToEnableMic');
+  const micLabel = document.getElementById('mic-label');
+  const interimDisplay = document.getElementById('interim-display');
+  
+  if (micBtn) {
+    micBtn.classList.remove('active');
+    micBtn.textContent = '🎙️';
+    micBtn.setAttribute('aria-pressed', 'false');
+    micBtn.setAttribute('aria-label', t('turnOnMic'));
+  }
+  
+  if (micLabel) {
+    micLabel.textContent = t('clickToEnableMic');
+  }
+  
   setStatus('idle', '⏸ ' + t('waiting'));
-  document.getElementById('interim-display').innerHTML = '<em class="text-muted">' + t('recognizingText') + '</em>';
+  
+  if (interimDisplay) {
+    interimDisplay.innerHTML = '<em class="text-muted">' + t('recognizingText') + '</em>';
+  }
 }
 
 async function triggerAutoTranslation(text) {
@@ -684,6 +811,7 @@ async function triggerAutoTranslation(text) {
   // Đánh dấu đang xử lý để chặn các lệnh dịch trùng lặp
   state.isTranslating = true;
   clearTimeout(state.silenceTimer);
+  state.silenceTimer = null;
 
   // Dừng nhận diện để làm sạch buffer cho câu nói tiếp theo
   // onend sẽ không restart vì isTranslating = true
@@ -696,22 +824,46 @@ async function triggerAutoTranslation(text) {
   }
 
   // Cập nhật giao diện sang trạng thái đang dịch
-  document.getElementById('interim-display').innerHTML = '<em class="text-muted">' + t('translatingText') + '</em>';
+  const interimDisplay = document.getElementById('interim-display');
+  if (interimDisplay) {
+    interimDisplay.innerHTML = '<em class="text-muted">' + t('translatingText') + '</em>';
+  }
+  
   setStatus('translating', '⟳ ' + t('translating'));
-  if (state.sessionRef) state.sessionRef.update({ interim: '' });
+  
+  if (state.sessionRef) {
+    try {
+      await state.sessionRef.update({ interim: '' });
+    } catch (e) {
+      console.warn('Firebase update error:', e);
+    }
+  }
 
   // Thực hiện dịch thuật; mic sẽ restart sau khi TTS đọc xong
-  await translateText(text.trim());
+  try {
+    await translateText(text.trim());
+  } catch (error) {
+    console.error('Translation error:', error);
+    // Reset state on error
+    state.isTranslating = false;
+    if (state.isMicOn) {
+      startMic();
+    }
+  }
 }
 
 function setStatus(type, text) {
   const chip = document.getElementById('status-chip');
-  chip.className = 'status-chip ' + type;
-  chip.textContent = text;
+  if (chip) {
+    chip.className = 'status-chip ' + type;
+    chip.textContent = text;
+  }
 }
 
-function translateText(originalText) {
-  return fallbackGoogleTranslate(originalText).then(translatedText => {
+async function translateText(originalText) {
+  try {
+    const translatedText = await fallbackGoogleTranslate(originalText);
+    
     const entry = {
       original: originalText,
       translated: translatedText,
@@ -729,13 +881,27 @@ function translateText(originalText) {
 
     // Push to Firebase
     if (state.sessionRef) {
-      state.sessionRef.child('translations').push(entry);
+      try {
+        await state.sessionRef.child('translations').push(entry);
+      } catch (e) {
+        console.warn('Firebase push error:', e);
+      }
     }
 
     // Auto-scroll
     const scroll = document.getElementById('translation-scroll');
-    setTimeout(() => { scroll.scrollTop = scroll.scrollHeight; }, 100);
-  });
+    if (scroll) {
+      setTimeout(() => { scroll.scrollTop = scroll.scrollHeight; }, 100);
+    }
+  } catch (error) {
+    console.error('Translation error:', error);
+    // Reset state and restart mic on error
+    state.isTranslating = false;
+    if (state.isMicOn) {
+      startMic();
+    }
+    throw error;
+  }
 }
 
 // =========================================================
@@ -848,15 +1014,17 @@ async function fallbackGoogleTranslate(textToTranslate) {
 
 function appendTranslationEntry(entry) {
   const scroll = document.getElementById('translation-scroll');
+  if (!scroll) return;
+  
   const div = document.createElement('div');
   div.className = 'translation-entry';
   div.innerHTML = `
     <div class="entry-original">
-      <div class="lang-tag">${entry.srcLang} · ${t('original')}</div>
+      <div class="lang-tag">${escapeHtml(entry.srcLang)} · ${t('original')}</div>
       ${escapeHtml(entry.original)}
     </div>
     <div class="entry-translated">
-      <div class="lang-tag">${entry.tgtLang} · ${t('translation')}</div>
+      <div class="lang-tag">${escapeHtml(entry.tgtLang)} · ${t('translation')}</div>
       ${escapeHtml(entry.translated)}
     </div>
   `;
@@ -908,9 +1076,20 @@ function listenToSession(db, sessionId) {
 
   // Register as viewer
   sessionRef.child('viewerCount').transaction(count => (count || 0) + 1);
-  window.addEventListener('beforeunload', () => {
+  
+  // Cleanup function
+  const cleanup = () => {
     sessionRef.child('viewerCount').transaction(count => Math.max((count || 0) - 1, 0));
-  });
+    sessionRef.off(); // Unsubscribe all listeners
+  };
+  
+  // Register cleanup on page unload
+  window.addEventListener('beforeunload', cleanup);
+  
+  // Store cleanup function for manual cleanup if needed
+  if (!window.viewerCleanup) {
+    window.viewerCleanup = cleanup;
+  }
 
   // Listen to session data
   sessionRef.on('value', snap => {
@@ -921,9 +1100,16 @@ function listenToSession(db, sessionId) {
     }
 
     // Update speaker info
-    document.getElementById('viewer-speaker-name').textContent = data.speakerName || 'Diễn Giả';
+    const speakerNameEl = document.getElementById('viewer-speaker-name');
+    if (speakerNameEl) {
+      speakerNameEl.textContent = data.speakerName || t('connecting');
+    }
+    
     if (data.avatarSrc) {
-      renderAvatar(document.getElementById('viewer-avatar'), data.avatarSrc);
+      const avatarEl = document.getElementById('viewer-avatar');
+      if (avatarEl) {
+        renderAvatar(avatarEl, data.avatarSrc);
+      }
     }
 
     // Status
@@ -931,15 +1117,18 @@ function listenToSession(db, sessionId) {
     const statusText = document.getElementById('viewer-status-text');
     const interimEl = document.getElementById('viewer-interim');
     
+    if (!statusDot || !statusText || !interimEl) return;
+    
     if (data.status === 'presenting') {
       statusDot.style.background = 'var(--green)';
       statusText.textContent = t('broadcasting');
-      document.getElementById('viewer-waiting').style.display = 'none';
+      const waitingEl = document.getElementById('viewer-waiting');
+      if (waitingEl) waitingEl.style.display = 'none';
       interimEl.style.display = 'block';
     } else if (data.status === 'ended') {
       statusDot.style.background = 'var(--red)';
       statusText.textContent = t('sessionEnded');
-      interimEl.style.display = 'none'; // Ẩn dòng "Đang lắng nghe" khi kết thúc
+      interimEl.style.display = 'none';
       showViewerEndedMessage();
     } else {
       // waiting status
@@ -984,6 +1173,8 @@ function appendViewerEntry(entry) {
   if (waiting) waiting.style.display = 'none';
 
   const scroll = document.getElementById('viewer-scroll');
+  if (!scroll) return;
+  
   const div = document.createElement('div');
   div.className = 'viewer-entry';
   div.innerHTML = `
@@ -991,7 +1182,9 @@ function appendViewerEntry(entry) {
     <div class="viewer-translated">${escapeHtml(entry.translated)}</div>
   `;
   scroll.appendChild(div);
-  setTimeout(() => { scroll.scrollTop = scroll.scrollHeight; }, 100);
+  setTimeout(() => { 
+    if (scroll) scroll.scrollTop = scroll.scrollHeight; 
+  }, 100);
 }
 
 function showViewerEndedMessage() {
@@ -1018,7 +1211,6 @@ function showPage(id) {
   });
   const target = document.getElementById(id);
   if (target) {
-    target.style.display = id === 'present-page' ? 'flex' : 'flex';
     target.style.display = 'flex';
   }
 }
@@ -1081,8 +1273,19 @@ function showSpeakerStats() {
 }
 
 function backToLobby() {
+  // Stop mic nếu đang bật
+  if (state.isMicOn) {
+    stopMic();
+  }
+  
+  // Stop TTS nếu đang chạy
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+  
   // Xóa session cũ trên Firebase
   if (state.sessionRef) {
+    state.sessionRef.off(); // Unsubscribe all listeners
     state.sessionRef.remove();
     state.sessionRef = null;
   }
@@ -1093,6 +1296,14 @@ function backToLobby() {
   state.viewerCount = 0;
   state.sessionStartTime = null;
   state.sessionEndTime = null;
+  state.isPresenting = false;
+  state.isTranslating = false;
+  
+  // Clear timers
+  if (state.silenceTimer) {
+    clearTimeout(state.silenceTimer);
+    state.silenceTimer = null;
+  }
   
   // Tạo session ID mới
   state.sessionId = generateSessionId();
