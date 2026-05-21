@@ -1045,8 +1045,8 @@ function speakTranslation(text, langCode) {
   utterance.onend = () => {
     if (state.isMicOn) {
       state.isTranslating = false;
-      // Delay 600ms để buffer audio bị xóa, tránh mic thu lại âm thanh TTS vừa phát
-      setTimeout(() => { if (state.isMicOn) startMic(); }, 600);
+      // Delay 300ms để buffer audio bị xóa, tránh mic thu lại âm thanh TTS vừa phát
+      setTimeout(() => { if (state.isMicOn) startMic(); }, 300);
     }
   };
 
@@ -1054,7 +1054,7 @@ function speakTranslation(text, langCode) {
   utterance.onerror = () => {
     if (state.isMicOn) {
       state.isTranslating = false;
-      setTimeout(() => { if (state.isMicOn) startMic(); }, 600);
+      setTimeout(() => { if (state.isMicOn) startMic(); }, 300);
     }
   };
 
