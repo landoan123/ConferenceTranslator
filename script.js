@@ -1145,7 +1145,7 @@ function toggleTTS() {
 // Tính delay restart mic dựa trên số ký tự text đã đọc
 // Text ngắn cần ít thời gian chờ, text dài cần nhiều hơn để tránh mic thu âm TTS
 function calcMicRestartDelay(charCount) {
-  const MIN_DELAY = 200;   // ms — text rất ngắn (≤30 ký tự)
+  const MIN_DELAY = 100;   // ms — text rất ngắn (≤30 ký tự)
   const MAX_DELAY = 800;   // ms — text dài (≥200 ký tự)
   const MIN_CHARS = 30;
   const MAX_CHARS = 200;
