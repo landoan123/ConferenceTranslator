@@ -754,15 +754,43 @@ input[type=file] {
   text-align: center;
 }
 
-.present-footer-info {
-  position: absolute;
-  bottom: 1.5rem;
-  left: 0;
-  right: 0;
+/* QR Code in presentation sidebar */
+.present-qr-block {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.4rem;
+  margin-top: 3rem;
+}
+
+.present-qr-container {
+  background: #fff;
+  padding: 10px;
+  border-radius: 12px;
+  width: fit-content;
+  box-shadow: 0 0 16px rgba(59, 138, 230, 0.15);
+  border: 1px solid var(--border2);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.present-qr-container:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 24px rgba(59, 138, 230, 0.3);
+}
+
+.present-qr-container img,
+.present-qr-container canvas {
+  display: block;
+  width: 140px !important;
+  height: 140px !important;
+}
+
+.present-footer-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
 }
 
 .footer-session {

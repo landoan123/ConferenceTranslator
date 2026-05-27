@@ -737,6 +737,24 @@ function startPresentation() {
     statusChip.textContent = t('waiting');
   }
 
+  // Generate QR code cho sidebar để người đến muộn vẫn quét được
+  const presentQrContainer = document.getElementById('present-qr-container');
+  if (presentQrContainer && state.viewerUrl && typeof QRCode !== 'undefined') {
+    presentQrContainer.innerHTML = '';
+    try {
+      new QRCode(presentQrContainer, {
+        text: state.viewerUrl,
+        width: 140,
+        height: 140,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.L,
+      });
+    } catch (e) {
+      console.warn('Presentation QR generation error:', e);
+    }
+  }
+
   showPage('present-page');
   const presentPage = document.getElementById('present-page');
   if (presentPage) presentPage.style.display = 'flex';
@@ -1145,9 +1163,9 @@ function toggleTTS() {
 // Tính delay restart mic dựa trên số ký tự text đã đọc
 // Text ngắn cần ít thời gian chờ, text dài cần nhiều hơn để tránh mic thu âm TTS
 function calcMicRestartDelay(charCount) {
-  const MIN_DELAY = 50;   // ms — text rất ngắn (≤30 ký tự)
+  const MIN_DELAY = 200;   // ms — text rất ngắn (≤30 ký tự)
   const MAX_DELAY = 800;   // ms — text dài (≥200 ký tự)
-  const MIN_CHARS = 10;
+  const MIN_CHARS = 30;
   const MAX_CHARS = 200;
 
   if (charCount <= MIN_CHARS) return MIN_DELAY;
