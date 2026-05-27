@@ -34,6 +34,8 @@ const state = {
   sessionStartTime: null,
   sessionEndTime: null,
   uiLang: 'vi', // Ngôn ngữ giao diện: 'vi' hoặc 'en'
+  viewerCountListener: null, // Store listener reference for proper cleanup
+  firebaseUpdateTimer: null, // Debounce timer for Firebase updates
 };
 
 // =========================================================
@@ -279,6 +281,9 @@ const LANG_NAMES = {
 // ROUTING — check URL for session viewer
 // =========================================================
 function init() {
+  // Check browser compatibility
+  checkBrowserCompatibility();
+  
   // Load saved UI language
   const savedLang = localStorage.getItem('uiLang');
   if (savedLang) {
@@ -294,6 +299,41 @@ function init() {
   }
   
   updateUILanguage();
+}
+
+// Check browser compatibility and show warnings
+function checkBrowserCompatibility() {
+  const warnings = [];
+  
+  // Check Web Speech API
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    warnings.push(state.uiLang === 'vi' 
+      ? 'Trình duyệt không hỗ trợ nhận diện giọng nói. Vui lòng dùng Chrome hoặc Edge.'
+      : 'Browser does not support speech recognition. Please use Chrome or Edge.');
+  }
+  
+  // Check Speech Synthesis
+  if (!window.speechSynthesis) {
+    warnings.push(state.uiLang === 'vi'
+      ? 'Trình duyệt không hỗ trợ đọc văn bản. Tính năng TTS sẽ không hoạt động.'
+      : 'Browser does not support text-to-speech. TTS feature will not work.');
+  }
+  
+  // Check Firebase
+  if (typeof firebase === 'undefined') {
+    console.warn('Firebase SDK not loaded');
+  }
+  
+  // Check QRCode
+  if (typeof QRCode === 'undefined') {
+    console.warn('QRCode library not loaded');
+  }
+  
+  // Log warnings
+  if (warnings.length > 0) {
+    console.warn('Browser compatibility issues:', warnings);
+  }
 }
 
 
@@ -314,6 +354,19 @@ function handleAvatarUpload(event) {
 
 function handleAvatarUrl(url) {
   if (!url) return;
+  
+  // Basic URL validation
+  try {
+    const urlObj = new URL(url);
+    if (!['http:', 'https:'].includes(urlObj.protocol)) {
+      console.warn('Invalid URL protocol');
+      return;
+    }
+  } catch (e) {
+    console.warn('Invalid URL format:', e);
+    return;
+  }
+  
   state.avatarSrc = url;
   state.avatarDataUrl = null;
   updateAvatarPreview(url);
@@ -347,6 +400,12 @@ function proceedToLobby() {
   const name = document.getElementById('speaker-name').value.trim();
   if (!name) {
     showError('setup-error', t('errorEnterName'));
+    return;
+  }
+  
+  // Validate name length
+  if (name.length > 100) {
+    showError('setup-error', state.uiLang === 'vi' ? 'Tên quá dài (tối đa 100 ký tự)' : 'Name too long (max 100 characters)');
     return;
   }
 
@@ -432,6 +491,14 @@ function buildLobby() {
 
   // Generate QR - Clear old QR first
   qrContainer.innerHTML = '';
+  
+  // Check if QRCode library is available
+  if (typeof QRCode === 'undefined') {
+    console.error('QRCode library not loaded');
+    qrContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--red);">QR Code library not loaded</div>';
+    return;
+  }
+  
   try {
     new QRCode(qrContainer, {
       text: viewerUrl,
@@ -443,7 +510,7 @@ function buildLobby() {
     });
   } catch (e) {
     console.error('QR Code generation error:', e);
-    qrContainer.innerHTML = '<div style="padding: 20px; text-align: center;">QR Code Error</div>';
+    qrContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--red);">QR Code Error</div>';
   }
 }
 
@@ -519,18 +586,40 @@ function goBack() {
     stopMic();
   }
   
-  // Cleanup Firebase
+  // Stop TTS
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+  
+  // Clear all timers
+  if (state.silenceTimer) {
+    clearTimeout(state.silenceTimer);
+    state.silenceTimer = null;
+  }
+  if (state.firebaseUpdateTimer) {
+    clearTimeout(state.firebaseUpdateTimer);
+    state.firebaseUpdateTimer = null;
+  }
+  
+  // Cleanup Firebase listeners properly
   if (state.sessionRef) {
+    if (state.viewerCountListener) {
+      state.sessionRef.child('viewerCount').off('value', state.viewerCountListener);
+      state.viewerCountListener = null;
+    }
     state.sessionRef.off();
-    state.sessionRef.remove();
+    state.sessionRef.remove().catch(e => console.warn('Firebase cleanup error:', e));
     state.sessionRef = null;
   }
   
   // Reset state
   state.isPresenting = false;
+  state.isTranslating = false;
   state.translationLog = [];
   state.viewerCount = 0;
   state.maxViewerCount = 0;
+  state.sessionStartTime = null;
+  state.sessionEndTime = null;
   
   showPage('setup-page');
 }
@@ -562,27 +651,38 @@ function initFirebaseForSpeaker() {
       console.error('Firebase set error:', e);
     });
     
+    // Cleanup previous listener if exists
+    if (state.viewerCountListener) {
+      state.sessionRef.child('viewerCount').off('value', state.viewerCountListener);
+    }
+    
     // Theo dõi số người xem
-    state.sessionRef.child('viewerCount').on('value', snap => {
+    state.viewerCountListener = snap => {
       const count = snap.val() || 0;
       state.viewerCount = count;
       updateViewerDisplay(count);
-    });
+    };
+    state.sessionRef.child('viewerCount').on('value', state.viewerCountListener);
     
     // Xóa session khi đóng trang
     const cleanup = () => {
       if (state.sessionRef) {
+        if (state.viewerCountListener) {
+          state.sessionRef.child('viewerCount').off('value', state.viewerCountListener);
+          state.viewerCountListener = null;
+        }
         state.sessionRef.off();
-        state.sessionRef.remove();
+        state.sessionRef.remove().catch(e => console.warn('Firebase cleanup error:', e));
+        state.sessionRef = null;
       }
     };
     
+    // Remove old listener before adding new one
+    window.removeEventListener('beforeunload', window.speakerCleanup);
     window.addEventListener('beforeunload', cleanup);
     
     // Store cleanup for manual use
-    if (!window.speakerCleanup) {
-      window.speakerCleanup = cleanup;
-    }
+    window.speakerCleanup = cleanup;
   } catch (e) {
     console.error('Firebase init error:', e);
   }
@@ -773,26 +873,40 @@ function startMic() {
         interimDisplay.textContent = interim;
       }
       
+      // Debounce Firebase updates to reduce network calls
       if (state.sessionRef) {
-        try {
-          state.sessionRef.update({ interim });
-        } catch (e) {
-          console.warn('Firebase interim update error:', e);
+        if (state.firebaseUpdateTimer) {
+          clearTimeout(state.firebaseUpdateTimer);
         }
+        state.firebaseUpdateTimer = setTimeout(() => {
+          if (state.sessionRef) {
+            state.sessionRef.update({ interim }).catch(e => {
+              console.warn('Firebase interim update error:', e);
+            });
+          }
+        }, 200); // Update Firebase max once per 200ms
       }
 
-      // Tự động dịch sau khoảng lặng ngừng nói
-      clearTimeout(state.silenceTimer);
+      // Tự động dịch sau khoảng lặng ngừng nói - Clear timer cũ trước
+      if (state.silenceTimer) {
+        clearTimeout(state.silenceTimer);
+      }
       state.silenceTimer = setTimeout(() => {
-        if (state.isMicOn && interim.trim()) {
+        if (state.isMicOn && !state.isTranslating && interim.trim()) {
           triggerAutoTranslation(interim);
         }
       }, 1500);
     }
 
     if (finalText.trim()) {
-      clearTimeout(state.silenceTimer);
-      state.silenceTimer = null;
+      if (state.silenceTimer) {
+        clearTimeout(state.silenceTimer);
+        state.silenceTimer = null;
+      }
+      if (state.firebaseUpdateTimer) {
+        clearTimeout(state.firebaseUpdateTimer);
+        state.firebaseUpdateTimer = null;
+      }
       triggerAutoTranslation(finalText);
     }
   };
@@ -851,12 +965,21 @@ function startMic() {
 }
 
 function stopMic() {
-  clearTimeout(state.silenceTimer);
-  state.silenceTimer = null;
+  if (state.silenceTimer) {
+    clearTimeout(state.silenceTimer);
+    state.silenceTimer = null;
+  }
+  if (state.firebaseUpdateTimer) {
+    clearTimeout(state.firebaseUpdateTimer);
+    state.firebaseUpdateTimer = null;
+  }
   state.isTranslating = false;
   
   if (state.recognition) {
     try {
+      state.recognition.onstart = null;
+      state.recognition.onresult = null;
+      state.recognition.onerror = null;
       state.recognition.onend = null;
       state.recognition.stop();
     } catch (e) {
@@ -886,6 +1009,17 @@ function stopMic() {
   
   if (interimDisplay) {
     interimDisplay.innerHTML = '<em class="text-muted">' + t('recognizingText') + '</em>';
+  }
+  
+  // Clear Firebase interim
+  if (state.sessionRef) {
+    try {
+      state.sessionRef.update({ interim: '' }).catch(e => {
+        console.warn('Firebase interim clear error:', e);
+      });
+    } catch (e) {
+      console.warn('Firebase interim clear error:', e);
+    }
   }
 }
 
@@ -1075,24 +1209,45 @@ if (window.speechSynthesis) {
 // Hàm dự phòng dùng Google Translate API miễn phí không cần proxy
 async function fallbackGoogleTranslate(textToTranslate) {
   try {
+    // Validate input
+    if (!textToTranslate || !textToTranslate.trim()) {
+      return '[Empty text]';
+    }
+    
+    // Limit text length to prevent API abuse
+    const maxLength = 5000;
+    if (textToTranslate.length > maxLength) {
+      textToTranslate = textToTranslate.substring(0, maxLength);
+    }
+    
     const sourceLang = state.sourceLang.split('-')[0];
     const targetLang = state.targetLang.split('-')[0];
     const apiUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(textToTranslate)}`;
 
-    const response = await fetch(apiUrl);
-    if (!response.ok) return '[Lỗi kết nối dịch thuật]';
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      console.error('Translation API error:', response.status);
+      return state.uiLang === 'vi' ? '[Lỗi kết nối dịch thuật]' : '[Translation connection error]';
+    }
 
     const data = await response.json();
     let translatedText = "";
-    if (data && data[0]) {
+    if (data && data[0] && Array.isArray(data[0])) {
       data[0].forEach(part => {
-        if (part[0]) translatedText += part[0];
+        if (part && part[0]) translatedText += part[0];
       });
     }
-    return translatedText || '[Lỗi dịch]';
+    
+    return translatedText.trim() || (state.uiLang === 'vi' ? '[Lỗi dịch]' : '[Translation error]');
   } catch (error) {
     console.error("Google Translate Fallback Error:", error);
-    return '[Lỗi kết nối dịch thuật]';
+    return state.uiLang === 'vi' ? '[Lỗi kết nối dịch thuật]' : '[Translation connection error]';
   }
 }
 
@@ -1159,21 +1314,28 @@ function listenToSession(db, sessionId) {
   const sessionRef = db.ref('sessions/' + sessionId);
 
   // Register as viewer
-  sessionRef.child('viewerCount').transaction(count => (count || 0) + 1);
+  sessionRef.child('viewerCount').transaction(count => (count || 0) + 1).catch(e => {
+    console.warn('Failed to register viewer:', e);
+  });
   
   // Cleanup function
   const cleanup = () => {
-    sessionRef.child('viewerCount').transaction(count => Math.max((count || 0) - 1, 0));
+    sessionRef.child('viewerCount').transaction(count => Math.max((count || 0) - 1, 0)).catch(e => {
+      console.warn('Failed to unregister viewer:', e);
+    });
     sessionRef.off(); // Unsubscribe all listeners
   };
+  
+  // Remove old listener before adding new one
+  if (window.viewerCleanup) {
+    window.removeEventListener('beforeunload', window.viewerCleanup);
+  }
   
   // Register cleanup on page unload
   window.addEventListener('beforeunload', cleanup);
   
   // Store cleanup function for manual cleanup if needed
-  if (!window.viewerCleanup) {
-    window.viewerCleanup = cleanup;
-  }
+  window.viewerCleanup = cleanup;
 
   // Listen to session data
   sessionRef.on('value', snap => {
@@ -1367,10 +1529,14 @@ function backToLobby() {
     window.speechSynthesis.cancel();
   }
   
-  // Xóa session cũ trên Firebase
+  // Xóa session cũ trên Firebase với proper cleanup
   if (state.sessionRef) {
+    if (state.viewerCountListener) {
+      state.sessionRef.child('viewerCount').off('value', state.viewerCountListener);
+      state.viewerCountListener = null;
+    }
     state.sessionRef.off(); // Unsubscribe all listeners
-    state.sessionRef.remove();
+    state.sessionRef.remove().catch(e => console.warn('Firebase cleanup error:', e));
     state.sessionRef = null;
   }
   
