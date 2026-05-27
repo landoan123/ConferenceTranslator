@@ -7,7 +7,6 @@ const state = {
   avatarDataUrl: null,
   sourceLang: 'vi-VN',
   targetLang: 'en',
-  translateApiKey: '67f3eb20-d04b-4021-8cb9-355538ad67a9:fx',
   firebaseConfig: {
     apiKey: "AIzaSyAHIrVVcWhilGQmEqn19VAjNOpYZ6kJg8Y",
     authDomain: "translator-conference.firebaseapp.com",
@@ -735,7 +734,7 @@ function startPresentation() {
   if (interimDisplay) interimDisplay.innerHTML = '<em class="text-muted">' + t('recognizingText') + '</em>';
   if (statusChip) {
     statusChip.className = 'status-chip idle';
-    statusChip.textContent = '⏸ ' + t('waiting');
+    statusChip.textContent = t('waiting');
   }
 
   showPage('present-page');
@@ -957,7 +956,7 @@ function startMic() {
       micLabel.textContent = t('listening');
     }
     
-    setStatus('listening', '● ' + t('listeningStatus'));
+    setStatus('listening', t('listeningStatus'));
   } catch (err) {
     console.error('Lỗi khi khởi động mic:', err);
     alert('Có lỗi khi khởi động microphone. Vui lòng tải lại trang.');
@@ -1005,7 +1004,7 @@ function stopMic() {
     micLabel.textContent = t('clickToEnableMic');
   }
   
-  setStatus('idle', '⏸ ' + t('waiting'));
+  setStatus('idle', t('waiting'));
   
   if (interimDisplay) {
     interimDisplay.innerHTML = '<em class="text-muted">' + t('recognizingText') + '</em>';
@@ -1047,7 +1046,7 @@ async function triggerAutoTranslation(text) {
     interimDisplay.innerHTML = '<em class="text-muted">' + t('translatingText') + '</em>';
   }
   
-  setStatus('translating', '⟳ ' + t('translating'));
+  setStatus('translating', t('translating'));
   
   if (state.sessionRef) {
     try {
@@ -1092,7 +1091,7 @@ async function translateText(originalText) {
 
     state.translationLog.push(entry);
     appendTranslationEntry(entry);
-    setStatus('listening', '● ' + t('listeningStatus'));
+    setStatus('listening', t('listeningStatus'));
 
     // Tự động đọc bản dịch
     speakTranslation(translatedText, state.targetLang);
@@ -1143,6 +1142,22 @@ function toggleTTS() {
   updateTTSLabel();
 }
 
+// Tính delay restart mic dựa trên số ký tự text đã đọc
+// Text ngắn cần ít thời gian chờ, text dài cần nhiều hơn để tránh mic thu âm TTS
+function calcMicRestartDelay(charCount) {
+  const MIN_DELAY = 200;   // ms — text rất ngắn (≤30 ký tự)
+  const MAX_DELAY = 800;   // ms — text dài (≥200 ký tự)
+  const MIN_CHARS = 30;
+  const MAX_CHARS = 200;
+
+  if (charCount <= MIN_CHARS) return MIN_DELAY;
+  if (charCount >= MAX_CHARS) return MAX_DELAY;
+
+  // Nội suy tuyến tính giữa MIN_DELAY và MAX_DELAY
+  const ratio = (charCount - MIN_CHARS) / (MAX_CHARS - MIN_CHARS);
+  return Math.round(MIN_DELAY + ratio * (MAX_DELAY - MIN_DELAY));
+}
+
 function speakTranslation(text, langCode) {
   if (!state.isAutoTTS || !text) {
     // Nếu TTS tắt, reset ngay để mic bắt đầu lại
@@ -1167,6 +1182,10 @@ function speakTranslation(text, langCode) {
   utterance.rate = 0.95;
   utterance.pitch = 1.0;
 
+  // Tính delay restart mic dựa trên độ dài text:
+  // Text ngắn (≤30 ký tự) → 200ms, text dài (≥200 ký tự) → 800ms
+  const micRestartDelay = calcMicRestartDelay(text.length);
+
   // Thử chọn voice tốt nhất cho ngôn ngữ đích
   const voices = window.speechSynthesis.getVoices();
   const langPrefix = ttsLang.split('-')[0].toLowerCase();
@@ -1179,8 +1198,8 @@ function speakTranslation(text, langCode) {
   utterance.onend = () => {
     if (state.isMicOn) {
       state.isTranslating = false;
-      // Delay 300ms để buffer audio bị xóa, tránh mic thu lại âm thanh TTS vừa phát
-      setTimeout(() => { if (state.isMicOn) startMic(); }, 300);
+      // Delay động để buffer audio bị xóa, tránh mic thu lại âm thanh TTS vừa phát
+      setTimeout(() => { if (state.isMicOn) startMic(); }, micRestartDelay);
     }
   };
 
@@ -1188,7 +1207,7 @@ function speakTranslation(text, langCode) {
   utterance.onerror = () => {
     if (state.isMicOn) {
       state.isTranslating = false;
-      setTimeout(() => { if (state.isMicOn) startMic(); }, 300);
+      setTimeout(() => { if (state.isMicOn) startMic(); }, micRestartDelay);
     }
   };
 
